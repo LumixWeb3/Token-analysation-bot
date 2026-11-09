@@ -87,7 +87,13 @@ For a manual Axiom source inspection, run the following command and close its de
 npm run axiom:inspect
 ```
 
-The Axiom command currently inventories selected response metadata. Its research adapter is still under verification.
+The Axiom window inventories selected public response metadata. For a bounded exact-token check, replace the sample Solana mint with the token you want to inspect.
+
+```sh
+node v2/agent/inspect-axiom.js --probe-token=8rHoAfpdE89bi1SRRKaYUWfng3YpntoxZQyEQy9GPmZV
+```
+
+This command collects allowlisted token metadata and holder aggregates for about 20 seconds, saves the result locally and closes its window. It fails if the expected token response or holder aggregates were not observed. Top-20 wallet ranking, native wallet labels and percentage normalization remain explicitly unverified. Axiom's complete research adapter is still in development.
 
 ### 7. Optional X data service
 
