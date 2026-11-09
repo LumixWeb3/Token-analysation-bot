@@ -1,0 +1,418 @@
+{
+  "note": "Public live DOM samples, deliberately capped to one row per chain/feed. Not complete-feed evidence. No underlying responses captured.",
+  "samples": [
+    {
+      "captured_at": "2026-10-26T14:15:29.165Z",
+      "capture_started_at": "2026-10-26T14:15:29.116Z",
+      "raw": {
+        "errors": [],
+        "explicit_empty": false,
+        "feed": "migrated",
+        "page_url": "https://gmgn.ai/",
+        "rows": [
+          {
+            "address_attr": "4wYiX21uJQj5MUPVDAHeVAbqCaEYVisEkHpWcKpApump",
+            "chain_attr": "sol",
+            "displayed_age": "16m",
+            "fee_icons": [
+              "IconSolanabal14pxS"
+            ],
+            "fee_values": [
+              "8.72"
+            ],
+            "href": "/sol/token/4wYiX21uJQj5MUPVDAHeVAbqCaEYVisEkHpWcKpApump",
+            "index_basis": "wrapper_translate_y_divided_by_height",
+            "key_attr": "4wYiX21uJQj5MUPVDAHeVAbqCaEYVisEkHpWcKpApump-sol",
+            "lane_attr": "Completed",
+            "logo_url": "https://gmgn.ai/external-res-eu/b74d069b994a2500aa62f75097815aaa_v2.webp",
+            "metrics": {
+              "mc": [
+                "$160.5K"
+              ],
+              "net_buy": [
+                "+$21.5K"
+              ],
+              "transactions": [
+                "5.1K"
+              ],
+              "volume": [
+                "$614K"
+              ]
+            },
+            "name": "WIFBTC",
+            "quote_asset": "SOL",
+            "render_index": 3,
+            "row_height": 124,
+            "social_urls": [
+              "https://x.com/WIFBTC_sol",
+              "https://x.com/WIFBTC_sol"
+            ],
+            "symbol": "WIFBTC",
+            "top": -108
+          },
+          {
+            "address_attr": "0x4e74eaa2d6006d0d5195a870037d0fbf0e33b928",
+            "chain_attr": "robinhood",
+            "displayed_age": "7h",
+            "fee_icons": [
+              "IconRobinhoodeth16pxS"
+            ],
+            "fee_values": [
+              "0.14"
+            ],
+            "href": "/robinhood/token/0x4e74eaa2d6006d0d5195a870037d0fbf0e33b928",
+            "index_basis": "wrapper_translate_y_divided_by_height",
+            "key_attr": "0x4e74eaa2d6006d0d5195a870037d0fbf0e33b928-robinhood",
+            "lane_attr": "Completed",
+            "logo_url": "https://gmgn.ai/external-res/76534ae41ffef5067bdeb0792f6aa34f_v2.webp",
+            "metrics": {
+              "mc": [
+                "$751.1K"
+              ],
+              "net_buy": [
+                "+$35.9K"
+              ],
+              "transactions": [
+                "1.7K"
+              ],
+              "volume": [
+                "$204.1K"
+              ]
+            },
+            "name": "Kivo",
+            "quote_asset": "ORBIO",
+            "render_index": 11,
+            "row_height": 124,
+            "social_urls": [
+              "https://x.com/kivoagentxyz",
+              "https://x.com/kivoagentxyz"
+            ],
+            "symbol": "KIVO",
+            "top": 884
+          }
+        ],
+        "scope": {
+          "filter_hash": null,
+          "filter_status": "UNVERIFIED",
+          "network_status": "UNVERIFIED",
+          "selected_chains": [
+            "robinhood",
+            "sol"
+          ],
+          "selection_observed": true,
+          "upstream_updated_at": null,
+          "window": "current_migrated_list"
+        },
+        "scroll": {
+          "client": 775,
+          "height": 7440,
+          "top": 678
+        },
+        "terminal_evidence": null,
+        "visible_indexes": [
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ]
+      }
+    },
+    {
+      "captured_at": "2026-10-26T14:16:37.357Z",
+      "capture_started_at": "2026-10-26T14:16:37.321Z",
+      "raw": {
+        "errors": [],
+        "explicit_empty": false,
+        "feed": "trending",
+        "headers": [
+          "Token/Age",
+          "MC",
+          "ATH MC",
+          "Liq",
+          "24h Vol",
+          "24h TXs",
+          "Holders",
+          "Total Fees",
+          "Token Info",
+          ""
+        ],
+        "page_url": "https://gmgn.ai/trend",
+        "rows": [
+          {
+            "cells": [
+              {
+                "leaves": [
+                  "",
+                  "",
+                  "3",
+                  "",
+                  "STONK",
+                  "STONK",
+                  "",
+                  "",
+                  "​",
+                  "",
+                  "",
+                  "49d",
+                  "6GmA...UNgx",
+                  "​",
+                  "",
+                  "4",
+                  "",
+                  "",
+                  "",
+                  "",
+                  "114"
+                ],
+                "text": "3STONKSTONK​49d 6GmA...UNgx ​4114"
+              },
+              {
+                "leaves": [
+                  "$104.3M",
+                  "+7.2%"
+                ],
+                "text": "$104.3M+7.2%"
+              },
+              {
+                "leaves": [
+                  "$337.5M"
+                ],
+                "text": "$337.5M"
+              },
+              {
+                "leaves": [
+                  "🔥",
+                  "$2.3M"
+                ],
+                "text": "🔥$2.3M"
+              },
+              {
+                "leaves": [
+                  "$17.9M"
+                ],
+                "text": "$17.9M"
+              },
+              {
+                "leaves": [
+                  "200.2K",
+                  "108.9K",
+                  "/",
+                  "91,284"
+                ],
+                "text": "200.2K108.9K/91,284"
+              },
+              {
+                "leaves": [
+                  "115.5K"
+                ],
+                "text": "115.5K"
+              },
+              {
+                "leaves": [
+                  "12,567.15 SOL"
+                ],
+                "text": "12,567.15 SOL"
+              },
+              {
+                "leaves": [
+                  "",
+                  "",
+                  "0%",
+                  "",
+                  "",
+                  "",
+                  "",
+                  "",
+                  "",
+                  "/"
+                ],
+                "text": "18%0%0%53%65%0%$299 CTO400/25.01%"
+              },
+              {
+                "leaves": [
+                  ""
+                ],
+                "text": "Buy"
+              }
+            ],
+            "displayed_age": null,
+            "href": "/sol/token/6GmAFSYs4gk3FDao5FzzySQpPZaWsa4rUJHacpMpUNgx",
+            "index_basis": "data_index",
+            "logo_url": "https://gmgn.ai/external-res/e7001a70d57622dacd7a61ce094c8b22_v2.webp",
+            "name": null,
+            "quote_asset": null,
+            "render_index": 0,
+            "row_keys": [
+              "sol_6GmAFSYs4gk3FDao5FzzySQpPZaWsa4rUJHacpMpUNgx",
+              "sol_6GmAFSYs4gk3FDao5FzzySQpPZaWsa4rUJHacpMpUNgx",
+              "sol_6GmAFSYs4gk3FDao5FzzySQpPZaWsa4rUJHacpMpUNgx",
+              "sol_6GmAFSYs4gk3FDao5FzzySQpPZaWsa4rUJHacpMpUNgx",
+              "sol_6GmAFSYs4gk3FDao5FzzySQpPZaWsa4rUJHacpMpUNgx",
+              "sol_6GmAFSYs4gk3FDao5FzzySQpPZaWsa4rUJHacpMpUNgx",
+              "sol_6GmAFSYs4gk3FDao5FzzySQpPZaWsa4rUJHacpMpUNgx",
+              "sol_6GmAFSYs4gk3FDao5FzzySQpPZaWsa4rUJHacpMpUNgx",
+              "sol_6GmAFSYs4gk3FDao5FzzySQpPZaWsa4rUJHacpMpUNgx",
+              "sol_6GmAFSYs4gk3FDao5FzzySQpPZaWsa4rUJHacpMpUNgx"
+            ],
+            "social_urls": [
+              "https://x.com/LaunchOnSF"
+            ],
+            "symbol": "STONK",
+            "top": 184.5
+          },
+          {
+            "cells": [
+              {
+                "leaves": [
+                  "",
+                  "",
+                  "FABLES",
+                  "Fables",
+                  "",
+                  "",
+                  "​",
+                  "",
+                  "Unknown",
+                  "",
+                  "6d",
+                  "0xb6...8106",
+                  "​",
+                  "",
+                  "",
+                  "",
+                  "",
+                  "",
+                  "16"
+                ],
+                "text": "FABLESFables​Unknown6d 0xb6...8106 ​16"
+              },
+              {
+                "leaves": [
+                  "$6.5M",
+                  "-8.4%"
+                ],
+                "text": "$6.5M-8.4%"
+              },
+              {
+                "leaves": [
+                  "$10.6M"
+                ],
+                "text": "$10.6M"
+              },
+              {
+                "leaves": [
+                  "$122.2K"
+                ],
+                "text": "$122.2K"
+              },
+              {
+                "leaves": [
+                  "$128.9K"
+                ],
+                "text": "$128.9K"
+              },
+              {
+                "leaves": [
+                  "530",
+                  "104",
+                  "/",
+                  "426"
+                ],
+                "text": "530104/426"
+              },
+              {
+                "leaves": [
+                  "4.3K"
+                ],
+                "text": "4.3K"
+              },
+              {
+                "leaves": [
+                  "4.15 ETH"
+                ],
+                "text": "4.15 ETH"
+              },
+              {
+                "leaves": [
+                  "",
+                  "",
+                  "0%",
+                  "",
+                  "",
+                  "",
+                  "",
+                  "",
+                  "",
+                  "/"
+                ],
+                "text": "74%0%0%0.4%89%0%$299476/9.03%"
+              },
+              {
+                "leaves": [
+                  ""
+                ],
+                "text": "Buy"
+              }
+            ],
+            "displayed_age": null,
+            "href": "/robinhood/token/0xb63d07cef74be747231d601bb2faa6b252c68106",
+            "index_basis": "data_index",
+            "logo_url": "https://gmgn.ai/external-res/2bcdbac9d1bd4200a2ddfbfb36b80635_v2.webp",
+            "name": null,
+            "quote_asset": null,
+            "render_index": 5,
+            "row_keys": [
+              "robinhood_0xb63d07cef74be747231d601bb2faa6b252c68106",
+              "robinhood_0xb63d07cef74be747231d601bb2faa6b252c68106",
+              "robinhood_0xb63d07cef74be747231d601bb2faa6b252c68106",
+              "robinhood_0xb63d07cef74be747231d601bb2faa6b252c68106",
+              "robinhood_0xb63d07cef74be747231d601bb2faa6b252c68106",
+              "robinhood_0xb63d07cef74be747231d601bb2faa6b252c68106",
+              "robinhood_0xb63d07cef74be747231d601bb2faa6b252c68106",
+              "robinhood_0xb63d07cef74be747231d601bb2faa6b252c68106",
+              "robinhood_0xb63d07cef74be747231d601bb2faa6b252c68106",
+              "robinhood_0xb63d07cef74be747231d601bb2faa6b252c68106"
+            ],
+            "social_urls": [
+              "https://x.com/fablesfi"
+            ],
+            "symbol": "FABLES",
+            "top": 606
+          }
+        ],
+        "scope": {
+          "filter_hash": null,
+          "filter_status": "UNVERIFIED",
+          "network_status": "UNVERIFIED",
+          "selected_chains": [
+            "robinhood",
+            "sol"
+          ],
+          "selection_observed": true,
+          "upstream_updated_at": null,
+          "window": "24h"
+        },
+        "scroll": {
+          "client": 823,
+          "height": 4086,
+          "top": 0
+        },
+        "terminal_evidence": null,
+        "visible_indexes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ]
+      }
+    }
+  ]
+}

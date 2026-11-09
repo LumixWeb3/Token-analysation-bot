@@ -1,0 +1,205 @@
+{
+  "note": "Historical public schema subset for offline tests only; not a complete or fresh feed.",
+  "migrated": {
+    "code": 0,
+    "message": "success",
+    "data": [
+      {
+        "chain": "sol",
+        "completed": {
+          "filter_id": "sol_cp_f184cf78a6b4d278",
+          "version": "C713155DD3C96B00",
+          "tokens": [
+            {
+              "n": "sol",
+              "a": "J58Lht8j8HwwqfEjoqgSvnxEpdsMJqenoa35faxipump",
+              "nm": "Koyuri",
+              "s": "Koyuri",
+              "l": "https://gmgn.ai/external-res/eb1eb6fe1b44e12847128d4065aaee8f_v2.webp",
+              "ct": 1793103355,
+              "ot": 1793103838,
+              "p": 0.000029223029,
+              "b24h": 2137,
+              "s24h": 1294,
+              "sw24h": 3431,
+              "v24h": 126226.36,
+              "lq": 11124.5709777972,
+              "mc": 27984.91,
+              "hd": 531,
+              "m_x": "lilbruhfish/status/2115054882226847797",
+              "f_tt": 13.668416905949684
+            },
+            {
+              "n": "sol",
+              "a": "2NiYWoSAPZu3k1uyEu6KXC3SbwQ481APopXLCqaipump",
+              "nm": "GTA VII",
+              "s": "GTA7",
+              "l": "https://gmgn.ai/external-res/eb3438f586212e491e02bd7d9e26964a_v2.webp",
+              "ct": 1793102836,
+              "ot": 1793102836,
+              "p": 0.0000636482982410324,
+              "b24h": 5724,
+              "s24h": 4945,
+              "sw24h": 10669,
+              "v24h": 1160199.18,
+              "lq": 23631.67080924216,
+              "mc": 61404.34,
+              "hd": 440,
+              "m_x": "GTA_VII_coin",
+              "f_tt": 13.35723059224132
+            }
+          ]
+        }
+      },
+      {
+        "chain": "robinhood",
+        "completed": {
+          "filter_id": "robinhood_cp_29f1fbd9984ec6f0",
+          "version": "C713155BF425A7B0",
+          "tokens": [
+            {
+              "n": "robinhood",
+              "a": "0xec383a25b6434216eaa695c11c26b765ba061521",
+              "nm": "Sodi",
+              "s": "SODI",
+              "l": "https://gmgn.ai/external-res/6495f0e3b88a9c46767990b061234032_v2.webp",
+              "ct": 1793089077,
+              "ot": 1793089124,
+              "p": 0.00018412427,
+              "b24h": 1620,
+              "s24h": 1100,
+              "sw24h": 2720,
+              "v24h": 401693.6,
+              "lq": 37386.72873842817,
+              "mc": 184124.27,
+              "hd": 381,
+              "m_x": "sodi_trade",
+              "f_tt": 0.7645379048928026
+            },
+            {
+              "n": "robinhood",
+              "a": "0x50c46d4f055f2a441ccbd3ad2953640759b7ed44",
+              "nm": "Plynth",
+              "s": "PLTH",
+              "l": "https://gmgn.ai/external-res/09aecc87a7d82d0b10b9566bcb2cb142_v2.webp",
+              "ct": 1793067200,
+              "ot": 1793067203,
+              "p": 0.000038647668,
+              "b24h": 949,
+              "s24h": 662,
+              "sw24h": 1611,
+              "v24h": 139517.75,
+              "lq": 16876.88158341296,
+              "mc": 38647.67,
+              "hd": 219,
+              "m_x": "plynth_rh",
+              "f_tt": 0.1874720472487955
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "trending": {
+    "code": 0,
+    "message": "success",
+    "data": [
+      {
+        "chain": "sol",
+        "interval": "24h",
+        "filter_id": "sol_tm24h_cd27880b1c2accda",
+        "version": "C7131576C154F458",
+        "tokens": [
+          {
+            "a": "AhBidGAgv6QbKSWfrSCegGrzFLcBx4E5FNYTKHNQQj6C",
+            "itv": "24h",
+            "c": "sol",
+            "nm": "Launch",
+            "s": "LAUNCH",
+            "l": "https://gmgn.ai/external-res/11c75d05fa7487fade7c78ab347ded28_v2.webp",
+            "p": 0.00285205,
+            "v": 7628970,
+            "lq": 325588,
+            "mc": 2805830,
+            "sw": 131324,
+            "bu": 71193,
+            "se": 60131,
+            "hd": 9176,
+            "ot": 1792928328,
+            "ct": 1792928328,
+            "m_x": "https://x.com/_LaunchX/status/2114318562424766849",
+            "gf": 777.8323242964898
+          },
+          {
+            "a": "51SfaAyrYaR8FpibXT4TXtxEpnZSNoDwYVRojtKupump",
+            "itv": "24h",
+            "c": "sol",
+            "nm": "Backed By Belief",
+            "s": "Nothing",
+            "l": "https://gmgn.ai/external-res/fce336b74e7832bde4874d7eb0a39034_v2.webp",
+            "p": 0.00139984,
+            "v": 6421670,
+            "lq": 117770,
+            "mc": 1368120,
+            "sw": 130646,
+            "bu": 73486,
+            "se": 57160,
+            "hd": 6032,
+            "ot": 1793049113,
+            "ct": 1793049113,
+            "m_x": "https://x.com/essencepnl/status/2114824640723894599",
+            "gf": 283.5945809870848
+          }
+        ]
+      },
+      {
+        "chain": "robinhood",
+        "interval": "24h",
+        "filter_id": "robinhood_tm24h_b64e86c122973ed3",
+        "version": "C7131576C7FB9770",
+        "tokens": [
+          {
+            "a": "0xc9675fe679c7d4e1b94416f66d61c96127eb964a",
+            "itv": "24h",
+            "c": "robinhood",
+            "nm": "Giga Tenev",
+            "s": "GIGATENEV",
+            "l": "https://gmgn.ai/external-res/be97661e5a639fa88aecfd72d9e1cfae_v2.webp",
+            "p": 0.001341,
+            "v": 896725,
+            "lq": 86909.6,
+            "mc": 1341000,
+            "sw": 15675,
+            "bu": 7827,
+            "se": 7848,
+            "hd": 11467,
+            "ot": 0,
+            "ct": 1791568846,
+            "m_x": "https://x.com/GigaTenevRH",
+            "gf": 4.244645918427968
+          },
+          {
+            "a": "0xd56a6c45941ee8aae31ce6a30bd049e0f7489cbd",
+            "itv": "24h",
+            "c": "robinhood",
+            "nm": "RaidLords",
+            "s": "RAID",
+            "l": "https://gmgn.ai/external-res/ae402dc9f5832f3dbd32e8cf3fbad1db_v2.webp",
+            "p": 0.000584312,
+            "v": 427281,
+            "lq": 68284.5,
+            "mc": 584312,
+            "sw": 18708,
+            "bu": 6018,
+            "se": 12690,
+            "hd": 2880,
+            "ot": 1793029681,
+            "ct": 1793029681,
+            "m_x": "https://x.com/RaidLords",
+            "gf": 0.6520529996750071
+          }
+        ]
+      }
+    ]
+  }
+}

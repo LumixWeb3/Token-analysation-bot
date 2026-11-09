@@ -1,0 +1,24 @@
+{
+  "id": 1793105869159,
+  "network": "sol",
+  "tab": "trending",
+  "filterQuery": {
+    "max_created": "7",
+    "min_marketcap": "100000",
+    "min_gas_fee": "14.7",
+    "renounced": "1",
+    "frozen": "0",
+    "Pump.fun": "1", "pump_mayhem": "1", "letsbonk": "1", "bonkers": "1",
+    "bags_v2": "1", "bags": "1", "stonkfun": "1", "stonkfun_cc": "1",
+    "hookedpad": "1", "hookd": "1", "tren_ch": "1", "virtuals": "1",
+    "stoxes": "1", "kickstart": "1", "orynth": "1", "swarms": "1",
+    "memoo": "1", "liquid": "1", "bankr": "1", "zora": "1", "surge": "1",
+    "anoncoin": "1", "moonshot_app": "1", "wendotdev": "1", "heaven": "1",
+    "sugar": "1", "token_mill": "1", "believe": "1", "trendsfun": "1",
+    "trends_fun": "1", "jup_studio": "1", "Moonshot": "1", "boop": "1",
+    "xstocks": "1", "ray_launchpad": "1", "meteora_virtual_curve": "1",
+    "pool_ray": "1", "pool_meteora": "1", "pool_pump_amm": "1", "pool_orca": "1"
+  },
+  "keywordSearch": [],
+  "timeType": { "min": "d", "max": "d" }
+}

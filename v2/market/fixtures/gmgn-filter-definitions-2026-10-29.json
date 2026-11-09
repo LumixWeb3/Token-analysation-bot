@@ -1,0 +1,634 @@
+{
+  "recorded_at": "2026-10-29T13:25:50.779Z",
+  "sources": [
+    {
+      "file": "lpp.json",
+      "source": "https://gmgn.ai/static/config/lpp.json",
+      "sha256": "1afe54cea5efd043140b23b6b3167f247ad61c718b5dc3a1c85087c82e0d2531",
+      "version": 118
+    },
+    {
+      "file": "quotes-filter.json",
+      "source": "https://gmgn.ai/static/config/quotes-filter.json",
+      "sha256": "80c0f7b06dcec5c9b1e2b5fb07cba9bff4334a76a41f9c62643f15285b09ca00",
+      "version": 7
+    },
+    {
+      "file": "lpp-facet.json",
+      "source": "https://gmgn.ai/static/config/lpp-facet.json",
+      "sha256": "f5879fef8be8782e790b366552745be753e3aa41f7235fb86938b76daf11cff8",
+      "version": 1
+    }
+  ],
+  "networks": {
+    "sol": {
+      "platforms": [
+        {
+          "key": "Pump.fun",
+          "children": []
+        },
+        {
+          "key": "pump_agent",
+          "children": []
+        },
+        {
+          "key": "pump_mayhem",
+          "children": []
+        },
+        {
+          "key": "pump_mayhem_agent",
+          "children": []
+        },
+        {
+          "key": "letsbonk",
+          "group": "ray_launchpad",
+          "children": []
+        },
+        {
+          "key": "bonkers",
+          "group": "ray_launchpad",
+          "children": []
+        },
+        {
+          "key": "bags_v2",
+          "children": []
+        },
+        {
+          "key": "bags",
+          "group": "meteora_virtual_curve",
+          "children": []
+        },
+        {
+          "key": "stonkfun",
+          "children": []
+        },
+        {
+          "key": "stonkfun_cc",
+          "children": []
+        },
+        {
+          "key": "hookedpad",
+          "children": []
+        },
+        {
+          "key": "hookd",
+          "children": []
+        },
+        {
+          "key": "tren_ch",
+          "children": []
+        },
+        {
+          "key": "virtuals",
+          "children": []
+        },
+        {
+          "key": "stoxes",
+          "children": []
+        },
+        {
+          "key": "kickstart",
+          "group": "meteora_virtual_curve",
+          "children": []
+        },
+        {
+          "key": "orynth",
+          "group": "meteora_virtual_curve",
+          "children": []
+        },
+        {
+          "key": "swarms",
+          "children": []
+        },
+        {
+          "key": "memoo",
+          "children": []
+        },
+        {
+          "key": "liquid",
+          "children": []
+        },
+        {
+          "key": "bankr",
+          "children": []
+        },
+        {
+          "key": "zora",
+          "children": []
+        },
+        {
+          "key": "surge",
+          "group": "ray_launchpad",
+          "children": []
+        },
+        {
+          "key": "anoncoin",
+          "children": []
+        },
+        {
+          "key": "moonshot_app",
+          "group": "meteora_virtual_curve",
+          "children": []
+        },
+        {
+          "key": "wendotdev",
+          "group": "ray_launchpad",
+          "children": []
+        },
+        {
+          "key": "heaven",
+          "children": []
+        },
+        {
+          "key": "sugar",
+          "children": []
+        },
+        {
+          "key": "token_mill",
+          "children": []
+        },
+        {
+          "key": "believe",
+          "group": "meteora_virtual_curve",
+          "children": []
+        },
+        {
+          "key": "trendsfun",
+          "group": "meteora_virtual_curve",
+          "children": []
+        },
+        {
+          "key": "trends_fun",
+          "group": "meteora_virtual_curve",
+          "children": []
+        },
+        {
+          "key": "jup_studio",
+          "group": "meteora_virtual_curve",
+          "children": []
+        },
+        {
+          "key": "Moonshot",
+          "children": []
+        },
+        {
+          "key": "boop",
+          "children": []
+        },
+        {
+          "key": "xstocks",
+          "group": "meteora_virtual_curve",
+          "children": []
+        },
+        {
+          "key": "ray_launchpad",
+          "group": "ray_launchpad",
+          "children": []
+        },
+        {
+          "key": "meteora_virtual_curve",
+          "group": "meteora_virtual_curve",
+          "children": []
+        },
+        {
+          "key": "pool_ray",
+          "children": []
+        },
+        {
+          "key": "pool_meteora",
+          "children": []
+        },
+        {
+          "key": "pool_pump_amm",
+          "children": []
+        },
+        {
+          "key": "pool_orca",
+          "children": []
+        },
+        {
+          "key": "pool_uniswap",
+          "children": []
+        },
+        {
+          "key": "pool_pancake",
+          "children": []
+        }
+      ],
+      "quotes": [
+        {
+          "key": "sol_sol",
+          "types": [
+            4,
+            5
+          ]
+        },
+        {
+          "key": "sol_usdc",
+          "types": [
+            3
+          ]
+        },
+        {
+          "key": "sol_usd1",
+          "types": [
+            1
+          ]
+        },
+        {
+          "key": "sol_zora",
+          "types": [
+            13
+          ]
+        },
+        {
+          "key": "sol_rwa",
+          "types": [
+            26
+          ]
+        },
+        {
+          "key": "sol_others",
+          "types": [
+            0
+          ]
+        }
+      ],
+      "facets": [
+        {
+          "key": "offchain",
+          "owner": "Pump.fun",
+          "owner_filters": [
+            "onchain"
+          ],
+          "selected_filters": [
+            "offchain"
+          ]
+        },
+        {
+          "key": "holder_reward",
+          "owner": "Pump.fun",
+          "owner_filters": [
+            "notHR"
+          ],
+          "selected_filters": [
+            "HR"
+          ]
+        }
+      ]
+    },
+    "robinhood": {
+      "platforms": [
+        {
+          "key": "pons_v2",
+          "children": []
+        },
+        {
+          "key": "pons",
+          "children": []
+        },
+        {
+          "key": "longxyz",
+          "children": []
+        },
+        {
+          "key": "o1_rwa",
+          "children": []
+        },
+        {
+          "key": "o1",
+          "children": []
+        },
+        {
+          "key": "bankr",
+          "children": []
+        },
+        {
+          "key": "trench_tax",
+          "children": [
+            "trench_tax",
+            "trench_v3_tax"
+          ]
+        },
+        {
+          "key": "trench",
+          "children": [
+            "trench",
+            "trench_v3"
+          ]
+        },
+        {
+          "key": "pools_trade_instant",
+          "children": []
+        },
+        {
+          "key": "flap",
+          "children": []
+        },
+        {
+          "key": "flap_stocks",
+          "children": []
+        },
+        {
+          "key": "flap_pve",
+          "children": []
+        },
+        {
+          "key": "pools_trade_cca",
+          "children": []
+        },
+        {
+          "key": "openfour",
+          "children": []
+        },
+        {
+          "key": "standard_reserve",
+          "children": []
+        },
+        {
+          "key": "roostlaunch",
+          "children": []
+        },
+        {
+          "key": "pair_fund",
+          "children": [
+            "pair_fund",
+            "pair_fund_v2"
+          ]
+        },
+        {
+          "key": "letscash",
+          "children": []
+        },
+        {
+          "key": "bags",
+          "children": [
+            "bags",
+            "bags_v3"
+          ]
+        },
+        {
+          "key": "bowfun",
+          "children": []
+        },
+        {
+          "key": "varo",
+          "children": []
+        },
+        {
+          "key": "pools_fun",
+          "children": []
+        },
+        {
+          "key": "stonkbroker_v2",
+          "children": []
+        },
+        {
+          "key": "stonkbroker",
+          "children": []
+        },
+        {
+          "key": "dontblink",
+          "children": []
+        },
+        {
+          "key": "sentry",
+          "children": []
+        },
+        {
+          "key": "sushi",
+          "children": [
+            "sushi",
+            "sushi_v2"
+          ]
+        },
+        {
+          "key": "circus",
+          "children": []
+        },
+        {
+          "key": "rally",
+          "children": []
+        },
+        {
+          "key": "orbofi",
+          "children": []
+        },
+        {
+          "key": "arrowfinance",
+          "children": []
+        },
+        {
+          "key": "motion",
+          "children": []
+        },
+        {
+          "key": "arenatrade",
+          "children": []
+        },
+        {
+          "key": "stoxes_tax",
+          "children": []
+        },
+        {
+          "key": "stoxes",
+          "children": []
+        },
+        {
+          "key": "lunch_v3",
+          "children": [
+            "lunch_v3",
+            "lunch_v4",
+            "lunch_pair_v3",
+            "lunch_pair_v4"
+          ]
+        },
+        {
+          "key": "holoworld",
+          "children": []
+        },
+        {
+          "key": "pewfun",
+          "children": []
+        },
+        {
+          "key": "livo",
+          "children": []
+        },
+        {
+          "key": "virtuals_v2",
+          "children": []
+        },
+        {
+          "key": "clanker",
+          "children": []
+        },
+        {
+          "key": "klik",
+          "children": []
+        },
+        {
+          "key": "printr",
+          "children": []
+        },
+        {
+          "key": "dyorswap",
+          "children": []
+        },
+        {
+          "key": "dyorfun_v3",
+          "children": []
+        },
+        {
+          "key": "apestore",
+          "children": []
+        },
+        {
+          "key": "basedbid",
+          "children": []
+        },
+        {
+          "key": "potatopad_curve",
+          "children": [
+            "potatopad_curve",
+            "potatopad_direct"
+          ]
+        },
+        {
+          "key": "launchhood",
+          "children": []
+        },
+        {
+          "key": "hypermeme",
+          "children": []
+        },
+        {
+          "key": "pmav",
+          "children": []
+        },
+        {
+          "key": "coinbarrel",
+          "children": []
+        },
+        {
+          "key": "leavehood",
+          "children": []
+        },
+        {
+          "key": "hoodfun",
+          "children": []
+        },
+        {
+          "key": "oro",
+          "children": []
+        },
+        {
+          "key": "realfun",
+          "children": []
+        },
+        {
+          "key": "robinfun",
+          "children": []
+        },
+        {
+          "key": "noxa",
+          "children": []
+        },
+        {
+          "key": "noxafi",
+          "children": []
+        },
+        {
+          "key": "noxafi_v2",
+          "children": []
+        },
+        {
+          "key": "memecoinfun",
+          "children": []
+        },
+        {
+          "key": "memecoinfun_v2",
+          "children": []
+        },
+        {
+          "key": "lemonswap",
+          "children": []
+        },
+        {
+          "key": "nasdank_v2",
+          "children": [
+            "nasdank_v2",
+            "nasdank_v3",
+            "nasdank_v4"
+          ]
+        },
+        {
+          "key": "flutch",
+          "children": [
+            "flutch",
+            "flutch_v3",
+            "flutch_v4"
+          ]
+        },
+        {
+          "key": "feelcash",
+          "children": []
+        },
+        {
+          "key": "pool_uniswap_v2",
+          "children": []
+        },
+        {
+          "key": "pool_uniswap_v3",
+          "children": []
+        },
+        {
+          "key": "pool_uniswap_v4",
+          "children": []
+        },
+        {
+          "key": "pool_pancake",
+          "children": []
+        },
+        {
+          "key": "pool_sushiswap",
+          "children": []
+        }
+      ],
+      "quotes": [
+        {
+          "key": "robinhood_weth",
+          "types": [
+            11,
+            20
+          ]
+        },
+        {
+          "key": "robinhood_usdg",
+          "types": [
+            24
+          ]
+        },
+        {
+          "key": "robinhood_virtual",
+          "types": [
+            12
+          ]
+        },
+        {
+          "key": "robinhood_rwa",
+          "types": [
+            26
+          ]
+        },
+        {
+          "key": "robinhood_others",
+          "types": [
+            0
+          ]
+        }
+      ],
+      "facets": []
+    }
+  }
+}

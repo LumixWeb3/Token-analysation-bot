@@ -1,0 +1,31 @@
+{
+  "id": 1793105895437,
+  "network": "robinhood",
+  "tab": "trending",
+  "filterQuery": {
+    "max_created": "7",
+    "min_marketcap": "100000",
+    "min_gas_fee": "0.65",
+    "not_honeypot": "0",
+    "verified": "0",
+    "pons_v2": "1", "pons": "1", "longxyz": "1", "o1_rwa": "1", "o1": "1",
+    "bankr": "1", "trench_tax": "1", "trench": "1", "pools_trade_instant": "1",
+    "flap": "1", "flap_stocks": "1", "flap_pve": "1", "pools_trade_cca": "1",
+    "openfour": "1", "standard_reserve": "1", "roostlaunch": "1", "pair_fund": "1",
+    "letscash": "1", "bags": "1", "bowfun": "1", "varo": "1", "pools_fun": "1",
+    "stonkbroker_v2": "1", "stonkbroker": "1", "dontblink": "1", "sentry": "1",
+    "sushi": "1", "circus": "1", "rally": "1", "orbofi": "1", "arrowfinance": "1",
+    "motion": "1", "arenatrade": "1", "stoxes_tax": "1", "stoxes": "1",
+    "lunch_v3": "1", "holoworld": "1", "pewfun": "1", "livo": "1",
+    "virtuals_v2": "1", "clanker": "1", "klik": "1", "printr": "1",
+    "dyorswap": "1", "dyorfun_v3": "1", "apestore": "1", "basedbid": "1",
+    "potatopad_curve": "1", "launchhood": "1", "hypermeme": "1", "pmav": "1",
+    "coinbarrel": "1", "leavehood": "1", "hoodfun": "1", "oro": "1",
+    "realfun": "1", "robinfun": "1", "noxa": "1", "noxafi": "1", "noxafi_v2": "1",
+    "memecoinfun": "1", "memecoinfun_v2": "1", "lemonswap": "1", "nasdank_v2": "1",
+    "flutch": "1", "feelcash": "1", "pool_uniswap_v2": "1", "pool_uniswap_v3": "1",
+    "pool_uniswap_v4": "1", "pool_sushiswap": "1"
+  },
+  "keywordSearch": [],
+  "timeType": { "min": "d", "max": "d" }
+}

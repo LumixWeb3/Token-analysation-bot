@@ -1,0 +1,28 @@
+{
+  "name": "alphahands-public",
+  "version": "1.0.0",
+  "description": "V2 agentic token research, source validation and strategy prototype",
+  "main": "v2/agent/build-prompt.js",
+  "scripts": {
+    "test": "node tools/offline-tests.js",
+    "privacy:check": "node tools/privacy-check.js",
+    "prompt:check": "node v2/agent/build-prompt.js --check"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@openai/codex-sdk": "0.167.0",
+    "axios": "^1.13.6",
+    "playwright": "^1.58.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LumixWeb3/Token-analysation-bot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/LumixWeb3/Token-analysation-bot/issues"
+  },
+  "homepage": "https://github.com/LumixWeb3/Token-analysation-bot#readme"
+}

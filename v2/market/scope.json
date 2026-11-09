@@ -1,0 +1,128 @@
+{
+  "version": 2,
+  "recorded_at": "2026-10-29",
+  "notes": [
+    "Generated reference: runtime Migrated requests compile from filters/migrated-sol.json and filters/migrated-robinhood.json via migrated-filter-config.js.",
+    "Owner supplied complete Completed exports on October 29; public GMGN quote/platform/facet definitions pinned in the dated fixture.",
+    "Trending remains compiled separately; V1/browser filters are unchanged. Limits describe returned rank cohorts, not every blockchain launch."
+  ],
+  "migrated": {
+    "params": [
+      {
+        "chain": "sol",
+        "completed": {
+          "filters": [
+            "onchain",
+            "offchain",
+            "notHR",
+            "HR"
+          ],
+          "min_marketcap": 25000,
+          "max_bundler_rate": 0.65,
+          "max_entrapment_ratio": 0.45,
+          "max_fresh_wallet_rate": 0.25,
+          "min_total_fee": 4,
+          "launchpad_platform": [
+            "Pump.fun",
+            "bags_v2",
+            "stonkfun_cc",
+            "hookedpad",
+            "hookd",
+            "virtuals"
+          ],
+          "quote_address_type": [
+            4,
+            5,
+            3,
+            1,
+            13,
+            26,
+            0
+          ],
+          "limit": 60
+        }
+      },
+      {
+        "chain": "robinhood",
+        "completed": {
+          "filters": [
+            "not_honeypot",
+            "open_source",
+            "owner_renounced",
+            "is_burnt"
+          ],
+          "min_marketcap": 25000,
+          "min_total_fee": 0.14,
+          "launchpad_platform": [
+            "pons_v2",
+            "pons",
+            "longxyz",
+            "o1_rwa",
+            "o1",
+            "bankr",
+            "trench_tax",
+            "trench_v3_tax",
+            "trench",
+            "trench_v3",
+            "pools_trade_instant",
+            "flap",
+            "flap_stocks",
+            "flap_pve",
+            "pools_trade_cca",
+            "openfour",
+            "standard_reserve",
+            "roostlaunch",
+            "pair_fund",
+            "pair_fund_v2",
+            "letscash",
+            "bags",
+            "bags_v3",
+            "bowfun",
+            "varo",
+            "pools_fun",
+            "stonkbroker_v2",
+            "stonkbroker",
+            "dontblink",
+            "sentry",
+            "sushi",
+            "sushi_v2",
+            "circus",
+            "rally",
+            "orbofi",
+            "arrowfinance",
+            "motion",
+            "arenatrade",
+            "stoxes_tax",
+            "stoxes",
+            "lunch_v3",
+            "lunch_v4",
+            "lunch_pair_v3",
+            "lunch_pair_v4",
+            "holoworld",
+            "pewfun",
+            "livo",
+            "virtuals_v2",
+            "clanker",
+            "klik",
+            "printr",
+            "dyorswap",
+            "dyorfun_v3",
+            "apestore",
+            "noxa",
+            "noxafi",
+            "noxafi_v2"
+          ],
+          "quote_address_type": [
+            11,
+            20,
+            24,
+            12,
+            26,
+            0
+          ],
+          "limit": 60
+        }
+      }
+    ]
+  }
+}

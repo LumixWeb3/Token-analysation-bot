@@ -1,0 +1,228 @@
+{
+  "currentPage": "Completed",
+  "network": "sol",
+  "dex": {
+    "Pump.fun": true,
+    "pump_mayhem": false,
+    "letsbonk": false,
+    "bonkers": false,
+    "bags_v2": true,
+    "bags": false,
+    "stonkfun": false,
+    "stonkfun_cc": true,
+    "hookedpad": true,
+    "hookd": true,
+    "tren_ch": false,
+    "virtuals": true,
+    "stoxes": false,
+    "kickstart": false,
+    "orynth": false,
+    "swarms": false,
+    "memoo": false,
+    "liquid": false,
+    "bankr": false,
+    "zora": false,
+    "surge": false,
+    "anoncoin": false,
+    "moonshot_app": false,
+    "wendotdev": false,
+    "heaven": false,
+    "sugar": false,
+    "token_mill": false,
+    "believe": false,
+    "trendsfun": false,
+    "trends_fun": false,
+    "jup_studio": false,
+    "Moonshot": false,
+    "boop": false,
+    "ray_launchpad": false,
+    "meteora_virtual_curve": false
+  },
+  "quote": {
+    "sol_sol": true,
+    "sol_usdc": true,
+    "sol_usd1": true,
+    "sol_zora": true,
+    "sol_rwa": true,
+    "sol_others": true
+  },
+  "facets": {
+    "offchain": true,
+    "holder_reward": true
+  },
+  "metricsRange": {
+    "complete_cost_time": {
+      "min": "",
+      "max": ""
+    },
+    "created": {
+      "min": "",
+      "max": ""
+    },
+    "liquidity": {
+      "min": "",
+      "max": ""
+    },
+    "usd_market_cap": {
+      "min": "25000",
+      "max": ""
+    },
+    "top_10_holder_rate": {
+      "min": "",
+      "max": ""
+    },
+    "creator_balance_rate": {
+      "min": "",
+      "max": ""
+    },
+    "bundler_rate": {
+      "min": "",
+      "max": "65"
+    },
+    "private_vault_hold_rate": {
+      "min": "",
+      "max": ""
+    },
+    "entrapment_ratio": {
+      "min": "",
+      "max": "45"
+    },
+    "fresh_wallet_rate": {
+      "min": "",
+      "max": "25"
+    },
+    "visiting_count": {
+      "min": "",
+      "max": ""
+    },
+    "top70_sniper_hold_rate": {
+      "min": "",
+      "max": ""
+    },
+    "rug_ratio": {
+      "min": "",
+      "max": ""
+    },
+    "x_following": {
+      "min": "",
+      "max": ""
+    },
+    "x_follower": {
+      "min": "",
+      "max": ""
+    },
+    "total_fee": {
+      "min": "4",
+      "max": ""
+    },
+    "renowned_count": {
+      "min": "",
+      "max": ""
+    },
+    "creator_created_open_count": {
+      "min": "",
+      "max": ""
+    },
+    "creator_created_count": {
+      "min": "",
+      "max": ""
+    },
+    "creator_created_open_ratio": {
+      "min": "",
+      "max": ""
+    },
+    "holders": {
+      "min": "",
+      "max": ""
+    },
+    "bot_count": {
+      "min": "",
+      "max": ""
+    },
+    "bot_degen_rate": {
+      "min": "",
+      "max": ""
+    },
+    "rat_trader_amount_rate": {
+      "min": "",
+      "max": ""
+    },
+    "twitter_rename_count": {
+      "min": "",
+      "max": ""
+    },
+    "callout_count": {
+      "min": "",
+      "max": ""
+    },
+    "tg_call_count": {
+      "min": "",
+      "max": ""
+    },
+    "volume_24h": {
+      "min": "",
+      "max": ""
+    },
+    "net_buy_24h": {
+      "min": "",
+      "max": ""
+    },
+    "swaps_24h": {
+      "min": "",
+      "max": ""
+    },
+    "buys_24h": {
+      "min": "",
+      "max": ""
+    },
+    "sells_24h": {
+      "min": "",
+      "max": ""
+    },
+    "smart_degen_count": {
+      "min": "",
+      "max": ""
+    },
+    "start_live_time": {
+      "min": "",
+      "max": ""
+    }
+  },
+  "tweetAgeRange": {
+    "tweet_age": {
+      "min": "",
+      "max": ""
+    }
+  },
+  "metricsSelect": {
+    "creator_close": false,
+    "creator_hold": false,
+    "img_not_duplicate": false,
+    "social_not_duplicate": false,
+    "token_burnt": false,
+    "is_token_live_v2": false,
+    "is_token_end_live": false,
+    "not_wash_trading": false,
+    "dev_team_sell_all": false,
+    "no_suspected_insider": false,
+    "is_og": false,
+    "uxento": false,
+    "rapid": false
+  },
+  "social": {
+    "has_social": false,
+    "twitter_is_tweet": false,
+    "dexscr_ad": false,
+    "dexscr_trending_bar": false,
+    "dexscr_boost": false,
+    "dexscr_update_link": false,
+    "cto_flag": false,
+    "has_twitter": false,
+    "has_website": false,
+    "has_telegram": false,
+    "has_youtube": false,
+    "has_tiktok": false,
+    "has_instagram": false
+  },
+  "inputKeywords": {}
+}
