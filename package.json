@@ -6,7 +6,14 @@
   "scripts": {
     "test": "node tools/offline-tests.js",
     "privacy:check": "node tools/privacy-check.js",
-    "prompt:check": "node v2/agent/build-prompt.js --check"
+    "prompt:check": "node v2/agent/build-prompt.js --check",
+    "auth:login": "node v2/agent/codex-auth.js --login",
+    "auth:status": "node v2/agent/codex-auth.js --status",
+    "browser:login": "node v2/agent/browser-login.js",
+    "check:main": "node v2/agent/verify-sdk-connection.js --main",
+    "check:recal": "node v2/agent/verify-sdk-connection.js --recal",
+    "collect:check": "node v2/market/collector.js --live-read-only --seconds=60",
+    "axiom:inspect": "node v2/agent/inspect-axiom.js --open"
   },
   "keywords": [],
   "author": "",

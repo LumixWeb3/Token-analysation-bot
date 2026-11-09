@@ -4,21 +4,7 @@
 // metadata only: never headers, cookies, query values, bodies or WS frames.
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),crypto=require('node:crypto');
 async function manualLogin(){
-  // Real manual Chrome sign-in, with the same dedicated collector profile.
-  // No automation/CDP/stealth switches, auth copying or credential inspection.
-  const {spawn}=require('node:child_process'),{profileDirectory,acquireProfileLock}=require('../../gmgn-browser-profile');
-  const directory=profileDirectory({role:'v2-axiom-inspection',chain:'solana',profileName:'axiom-research'});
-  const candidates=['C:/Program Files/Google/Chrome/Application/chrome.exe','C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',path.join(process.env.LOCALAPPDATA||'','Google/Chrome/Application/chrome.exe')];
-  const chrome=candidates.find(file=>fs.existsSync(file));if(!chrome)throw Error('AXIOM_CHROME_NOT_FOUND');
-  if(os.freemem()<2.25*1024**3)throw Error('AXIOM_RAM_RESERVE');
-  const lock=acquireProfileLock(directory);
-  try{
-    await new Promise((resolve,reject)=>{
-      const child=spawn(chrome,['--user-data-dir='+directory,'--no-first-run','--disable-background-mode','https://axiom.trade'],{windowsHide:true,stdio:'ignore'});
-      child.once('spawn',()=>process.stdout.write(JSON.stringify({status:'MANUAL_LOGIN_WINDOW_OPEN',profile:'axiom-research',automation_attached:false,trading_enabled:false})+'\n'));
-      child.once('error',()=>reject(Error('AXIOM_MANUAL_CHROME_FAILED')));child.once('exit',code=>code===0?resolve():reject(Error('AXIOM_MANUAL_CHROME_EXITED')));
-    });
-  }finally{lock.release();}
+  return require('./browser-login').openBrowserLogin({site:'axiom'});
 }
 async function inspect(){
   if(os.freemem()<2.25*1024**3)throw Error('AXIOM_RAM_RESERVE');
