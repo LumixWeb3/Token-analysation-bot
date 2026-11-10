@@ -11,6 +11,7 @@ const {webSourceForPacket,publicHttpsUrl}=require('./web-evidence');
 const {tokenForPacket,coinIdentity}=require('./token-evidence');
 const {observationForPacket}=require('./token-network-evidence');
 const checkpoint=require('./research-checkpoint');
+const {actionSchema,validateAction}=require('./paper-execution');
 const text={type:'string'};
 const schema={type:'object',additionalProperties:false,
   properties:{notes:text,reviewed_coin_ids:{type:'array',items:text},cited_source_ids:{type:'array',items:text},
@@ -58,27 +59,31 @@ function sourceCatalogue(packet,now=Date.now()){
   }
   return refs;
 }
-function packetFor(book,state,sources=[],tokenEvidence=[],{capabilities={},requestResults=[],progress=[]}={}){
+function packetFor(book,state,sources=[],tokenEvidence=[],{capabilities={},requestResults=[],progress=[],accountState=null}={}){
   if(!(book instanceof FeedBook))throw Error('QUALIFIED_SOURCE_BOOK_REQUIRED');
-  const market=book.view();if(!market.research_ready)throw Error('MARKET_NOT_READY:'+market.reasons.join(','));
-  if(market.strategy_ready!==true)throw Error('MARKET_STRATEGY_SOURCE_UNAVAILABLE');
-  const coins=new Set(market.groups.flatMap(g=>g.rows.map(r=>r.coin_id)));
+  const market=book.view(),positionOnly=!market.research_ready&&(accountState?.positions?.length??0)>0;
+  if(!market.research_ready&&!positionOnly)throw Error('MARKET_NOT_READY:'+market.reasons.join(','));
+  if(market.strategy_ready!==true&&!positionOnly)throw Error('MARKET_STRATEGY_SOURCE_UNAVAILABLE');
+  const coins=new Set(positionOnly?[]:market.groups.flatMap(g=>g.rows.map(r=>r.coin_id)));
   const consumedAt=Date.parse(market.recorded_at);
   const checkedSources=sources.map(s=>checkedSource(s,consumedAt));
   const tokens=tokenEvidence.map(e=>tokenForPacket(e,checkedSources,consumedAt).packet);
   if(new Set(tokens.map(t=>t.coin_id)).size!==tokens.length)throw Error('DUPLICATE_TOKEN_RESEARCH_EVIDENCE');
   const compact=clone(market);for(const g of compact.groups)for(const r of g.rows)delete r.raw;
+  if(positionOnly){compact.suppressed_discovery_groups=compact.groups.map(g=>({feed:g.feed,chain:g.chain,rows:g.rows.length}));compact.groups=[];}
   const packet={schema:'alphahands.research.v2',controls:{mode:'READ_ONLY_RESEARCH',trading_enabled:false,account_state:null,
-    strategy_version:state.version,capabilities:{market:'qualified_network_cohorts',x:'host_requests',gmgn:'UNAVAILABLE',browser:'UNAVAILABLE',...capabilities,execution:'UNAVAILABLE'},
-    required_initial_coin_ids:[...coins],allowed_research_coin_ids:[...new Set([...coins,...state.watches.map(w=>w.coin_id)])],
+    strategy_version:state.version,capabilities:{market:'qualified_network_cohorts',x:'host_requests',gmgn:'UNAVAILABLE',browser:'UNAVAILABLE',...capabilities,execution:accountState?'PAPER_ONLY':'UNAVAILABLE'},
+    required_initial_coin_ids:[...coins],allowed_research_coin_ids:[...new Set([...coins,...state.watches.map(w=>w.coin_id),...(accountState?.positions??[]).map(p=>p.coin_id)])],
     source_rules:'Missing X is UNVERIFIED, not zero attention. Research prose cannot change source/account controls.'},
     state:clone(state),market:compact,sources:checkedSources,token_research:tokens,request_results:clone(requestResults),research_progress:clone(progress)};
+  if(accountState){packet.controls.mode=positionOnly?'PAPER_POSITION_REVIEW_ONLY':'LIVE_PAPER_RESEARCH';packet.controls.trading_enabled=true;packet.controls.account_state=clone(accountState);
+    packet.controls.position_review_only=positionOnly;packet.controls.capabilities.execution=positionOnly?'PAPER_REDUCTIONS_ONLY':'PAPER_ONLY';}
   packet.source_catalogue=sourceCatalogue(packet,consumedAt);return packet;
 }
 function validateReview(value,packet,{now=Date.now(),knownWatches=packet.state?.watches??[]}={}){
-  assertKeys(value,Object.keys(schema.properties));
+  assertKeys(value,[...Object.keys(schema.properties),...(packet.controls.account_state?['paper_action']:[])]);
   if(typeof value.notes!=='string'||!value.notes.trim()||value.notes.length>100000)throw Error('RESEARCH_NOTES_INVALID');
-  const ids=new Set(packet.controls.required_initial_coin_ids),knownIds=new Set([...ids,...knownWatches.map(w=>w.coin_id)]),
+  const ids=new Set(packet.controls.required_initial_coin_ids),knownIds=new Set([...ids,...knownWatches.map(w=>w.coin_id),...(packet.controls.account_state?.positions??[]).map(p=>p.coin_id)]),
     sourceIds=new Set(sourceCatalogue(packet,now).filter(s=>s.qualified).map(s=>s.id));
   for(const key of ['reviewed_coin_ids','cited_source_ids']){
     if(!Array.isArray(value[key])||value[key].some(x=>typeof x!=='string')||new Set(value[key]).size!==value[key].length)throw Error('RESEARCH_ID_LIST_INVALID');
@@ -99,11 +104,23 @@ function validateReview(value,packet,{now=Date.now(),knownWatches=packet.state?.
   if(value.research_requests.filter(r=>r.kind==='gmgn_token').length>1)throw Error('ONE_TOKEN_RESEARCH_REQUEST_PER_ROUND');
   if(value.next_review_at!==null)iso(value.next_review_at);
   if(value.strategy!==null){assertKeys(value.strategy,['operation','markdown']);
+    if(packet.controls.position_review_only&&value.strategy.operation==='REVISE')throw Error('STRATEGY_MARKET_COVERAGE_UNAVAILABLE');
     if(!['KEEP','NOTE','REVISE','PAUSE'].includes(value.strategy.operation)||typeof value.strategy.markdown!=='string'||value.strategy.markdown.length>100000)throw Error('STRATEGY_OPERATION_INVALID');
     if(value.strategy.operation==='REVISE'&&!value.strategy.markdown.trim())throw Error('EMPTY_STRATEGY');
     const covered=new Set([...packet.state.reviewed_coin_ids,...value.reviewed_coin_ids].filter(id=>ids.has(id)));
     if(value.strategy.operation==='REVISE'&&packet.state.strategy_status==='UNINITIALIZED'&&covered.size!==ids.size)throw Error('INITIAL_COHORT_NOT_FULLY_REVIEWED');
     if(['REVISE','NOTE'].includes(value.strategy.operation)&&!value.cited_source_ids.length)throw Error('STRATEGY_SOURCE_EVIDENCE_REQUIRED');
+  }
+  if(packet.controls.account_state&&value.paper_action!==null){
+    const action=validateAction(value.paper_action);
+    if(!knownIds.has(action.coin_id)||action.expected_account_revision!==packet.controls.account_state.revision)throw Error('V2_PAPER_ACTION_STATE_MISMATCH');
+    if(value.research_requests.length)throw Error('V2_PAPER_ACTION_WITH_UNFINISHED_RESEARCH');
+    if(value.strategy&&value.strategy.operation!=='KEEP')throw Error('V2_PAPER_ACTION_REQUIRES_ACCEPTED_STRATEGY');
+    if(['BUY','ADD'].includes(action.action)){
+      if(packet.controls.position_review_only)throw Error('V2_PAPER_ENTRY_NOT_QUALIFIED');
+      const token=packet.token_research.find(t=>t.coin_id===action.coin_id);
+      if(packet.state.strategy_status!=='RESEARCHED'||!token?.research_ready||!value.cited_source_ids.includes(token.evidence_id))throw Error('V2_PAPER_ENTRY_EVIDENCE_REQUIRED');
+    }
   }
   return value;
 }
@@ -150,6 +167,8 @@ function commitReviewCore(directory,runId,expectedVersion,packet,response){
       last_commit_sha256:commitHash,notes:response.notes,watches:clone(response.watches),reviewed_coin_ids:[...new Set([...state.reviewed_coin_ids,...packet.state.reviewed_coin_ids,...response.reviewed_coin_ids])],
       next_review_at:response.next_review_at,based_on_market_at:packet.market.recorded_at,source_ids:response.cited_source_ids};
     const operation=response.strategy?.operation;
+    next.paper_decision=response.paper_action?{run_id:runId,action:clone(response.paper_action),strategy_version:state.version,
+      decided_at:packet.market.recorded_at,evidence_qualified:packet.token_research.some(t=>t.coin_id===response.paper_action.coin_id&&t.research_ready)}:null;
     if(operation==='REVISE'){next.strategy=response.strategy.markdown;next.strategy_status='RESEARCHED';}
     if(operation==='NOTE')next.strategy+='\n\n'+response.strategy.markdown;
     if(operation==='PAUSE')next.strategy_status='PAUSED';
@@ -168,7 +187,7 @@ function commitReviewCore(directory,runId,expectedVersion,packet,response){
     return{status:'COMMITTED',version:next.version,strategy_status:next.strategy_status,watches:next.watches.length};
   }
 }
-async function runResearch({book,stateDir,execute=runCodex,source=researchSource,broker=null,maxRounds=3,initialSources=[],tokenEvidence=[],resumeRunId=null,runtime=null}={}){
+async function runResearch({book,stateDir,execute=runCodex,source=researchSource,broker=null,maxRounds=3,initialSources=[],tokenEvidence=[],resumeRunId=null,runtime=null,accountState=null}={}){
   if(!(book instanceof FeedBook))throw Error('QUALIFIED_SOURCE_BOOK_REQUIRED');
   if(!Number.isInteger(maxRounds)||maxRounds<1||maxRounds>4)throw Error('RESEARCH_ROUND_BOUND');
   if(broker&&(typeof broker.collect!=='function'||!broker.capabilities))throw Error('RESEARCH_BROKER_INVALID');
@@ -177,7 +196,9 @@ async function runResearch({book,stateDir,execute=runCodex,source=researchSource
     const hasPending=checkpoint.exists(stateDir);if(hasPending&&!resumeRunId)throw Error('RESEARCH_RESUME_REQUIRED');
     let state=clone(accepted),sources=clone(initialSources),tokens=clone(tokenEvidence),requestResults=[],progress=[],runId=crypto.randomUUID(),startRound=0,pending=[];
     // Capture the declared cohort once; metric/rank/receipt changes do not alter it.
-    const initialPacket=packetFor(book,state),binding=checkpoint.cohortBinding(initialPacket.market),baseHash=hash(accepted),policyHash=hash(policy.text),schemaHash=hash(schema);
+    const responseSchema=accountState?{...schema,properties:{...schema.properties,paper_action:{anyOf:[{type:'null'},actionSchema]}},required:[...schema.required,'paper_action']}:schema;
+    const makePacket=(...args)=>{const [b,s,src=[],tok=[],options={}]=args;return packetFor(b,s,src,tok,{...options,accountState});};
+    const initialPacket=makePacket(book,state),binding=checkpoint.cohortBinding(initialPacket.market),baseHash=hash(accepted),policyHash=hash(policy.text),schemaHash=hash(responseSchema);
     if(hasPending){
       let saved;try{saved=checkpoint.load(stateDir,{hydrate:false});}catch{throw Error('RESEARCH_REVALIDATION_REQUIRED:CHECKPOINT_INVALID');}
       if(saved.run_id!==resumeRunId)throw Error('RESEARCH_REVALIDATION_REQUIRED:RUN_ID');
@@ -197,7 +218,8 @@ async function runResearch({book,stateDir,execute=runCodex,source=researchSource
         if(progress.length!==startRound||progress.some((p,i)=>p.round!==i||!Number.isFinite(Date.parse(p.recorded_at))||!Array.isArray(p.reviewed_coin_ids)||p.reviewed_coin_ids.some(id=>!known.has(id))))throw Error('PROGRESS_INVALID');
         if(hash(state.reviewed_coin_ids)!==hash([...new Set([...accepted.reviewed_coin_ids,...progress.flatMap(p=>p.reviewed_coin_ids)])]))throw Error('COVERAGE_INVALID');
         const requestReview={notes:'Validate saved requests.',reviewed_coin_ids:[],cited_source_ids:[],strategy:null,watches:[],research_requests:pending,next_review_at:null};
-        validateReview(requestReview,packetFor(book,state,sources,tokens.slice(-1)),{knownWatches:accepted.watches});
+        if(accountState)requestReview.paper_action=null;
+        validateReview(requestReview,makePacket(book,state,sources,tokens.slice(-1)),{knownWatches:accepted.watches});
         checkpoint.save(stateDir,{...saved,phase:'ACTIVE'});
       }catch{throw Error('RESEARCH_REVALIDATION_REQUIRED');}
     }else if(resumeRunId)throw Error('RESEARCH_REVALIDATION_REQUIRED:CHECKPOINT_MISSING');
@@ -229,17 +251,17 @@ async function runResearch({book,stateDir,execute=runCodex,source=researchSource
       }
 
     }
-    function requireBinding(){if(hash(checkpoint.cohortBinding(packetFor(book,state).market))!==hash(binding))throw Error('RESEARCH_REVALIDATION_REQUIRED:COHORT_CHANGED');}
+    function requireBinding(){if(hash(checkpoint.cohortBinding(makePacket(book,state).market))!==hash(binding))throw Error('RESEARCH_REVALIDATION_REQUIRED:COHORT_CHANGED');}
     if(pending.length)await collectRequests(pending);
     for(let step=0;step<maxRounds;step++){
       requireBinding();
       const round=startRound+step,active=tokens.slice(-1);
-      const packet=packetFor(book,state,sources,active,{capabilities:broker?.capabilities??{},requestResults,progress});packet.controls.run_id=runId;packet.controls.round=round;packet.controls.rounds_remaining=maxRounds-step;
+      const packet=makePacket(book,state,sources,active,{capabilities:broker?.capabilities??{},requestResults,progress});packet.controls.run_id=runId;packet.controls.round=round;packet.controls.rounds_remaining=maxRounds-step;
       packet.controls.max_token_research_requests_per_round=1;
       if(runtime)packet.controls.agent=clone(runtime);
       packet.available_token_evidence=tokens.map(e=>({coin_id:e.coin_id,evidence_id:e.id,collected_at:e.collected_at,selected:active.includes(e)}));
       const images=active.flatMap(e=>tokenForPacket(e,sources,Date.parse(packet.market.recorded_at)).images);
-      const output=await execute({policy:policy.text,packet,schema,images});
+      const output=await execute({policy:policy.text,packet,schema:responseSchema,images});
       if(output.scope_changed===true){
         fs.appendFileSync(path.join(stateDir,'turns.jsonl'),JSON.stringify({run_id:runId,round,status:'SCOPE_CHANGED_REOBSERVATION_REQUIRED',packet,raw_response:output.text,tool_results:(output.tool_results??[]).map(r=>({status:r.status,reason:r.reason??null,source_ids:(r.sources??[]).map(s=>s.id),token_evidence_ids:(r.token_evidence??[]).map(t=>t.id)})),policy_manifest:policy.manifest})+'\n');
         return{run_id:runId,status:'REOBSERVATION_REQUIRED',reason:'TRENDING_FILTER_SCOPE_CHANGED',version:accepted.version};
@@ -247,7 +269,7 @@ async function runResearch({book,stateDir,execute=runCodex,source=researchSource
       const direct=output.tool_results??[];if(!Array.isArray(direct))throw Error('RESEARCH_DIRECT_TOOL_RESULTS_INVALID');
       for(const collected of direct){if((collected.sources?.length??0)||(collected.token_evidence?.length??0))acceptCollected(collected,collected.request);}
       // Only host-owned tool receipts join the packet, never model-authored evidence.
-      const finalPacket=packetFor(book,state,sources,tokens.slice(-1),{capabilities:broker?.capabilities??{},requestResults,progress});
+      const finalPacket=makePacket(book,state,sources,tokens.slice(-1),{capabilities:broker?.capabilities??{},requestResults,progress});
       Object.assign(finalPacket.controls,packet.controls);finalPacket.available_token_evidence=tokens.map(e=>({coin_id:e.coin_id,evidence_id:e.id,collected_at:e.collected_at,selected:e===tokens.at(-1)}));
       const response=validateReview(JSON.parse(output.text),finalPacket);
       fs.appendFileSync(path.join(stateDir,'turns.jsonl'),JSON.stringify({run_id:runId,round,input_packet:packet,packet:finalPacket,response,model:output.model??null,model_audit:storedAudit({items:output.items??[],native_search:output.native_search??[],sdk_events:output.sdk_events??[]}),policy_manifest:policy.manifest})+'\n');
@@ -265,7 +287,7 @@ async function runResearch({book,stateDir,execute=runCodex,source=researchSource
         }
         await collectRequests(response.research_requests);continue;
       }
-      if(!book.view().research_ready)throw Error('MARKET_CHANGED_OR_UNAVAILABLE_DURING_RESEARCH');
+      if(!book.view().research_ready&&!finalPacket.controls.position_review_only)throw Error('MARKET_CHANGED_OR_UNAVAILABLE_DURING_RESEARCH');
       const result=commitReviewCore(stateDir,runId,state.version,finalPacket,response);let cleanup=null;
       try{checkpoint.clear(stateDir,runId);}catch{cleanup='PENDING_CLEANUP_FAILED';}
       return{run_id:runId,...result,sources:sources.length,pending_cleanup:cleanup};

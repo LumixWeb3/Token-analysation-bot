@@ -20,6 +20,21 @@ test('owner-accepted feed scope admits packets, while unavailable transport bloc
   let calls=0;await assert.rejects(runResearch({book,stateDir:d,execute:async()=>{calls++;throw Error('MODEL_MUST_NOT_RUN');}}),/MARKET_NOT_READY/);assert.equal(calls,0);
 });
 
+test('discovery failure permits held-position review but cannot form a new market strategy or add exposure',t=>{
+  const d=directory(t),book=new FeedBook();
+  for(const feed of ['migrated','trending']){assert(book.snapshot(feed,fixture[feed],SCOPE[feed]).accepted);book.connection(feed,true);}
+  book.connection('trending',false);
+  const accountState={revision:8,positions:[{coin_id:watchedCoin}]};
+  const p=packetFor(book,readState(d),[],[],{accountState});
+  assert.equal(p.controls.position_review_only,true);assert.equal(p.market.research_ready,false);
+  assert.equal(p.market.groups.length,0);assert.deepEqual(p.controls.required_initial_coin_ids,[]);
+  assert(p.controls.allowed_research_coin_ids.includes(watchedCoin));
+  const r=response();r.paper_action={action:'EXIT',coin_id:watchedCoin,expected_account_revision:8,percent:100,entry_low_mc:null,entry_high_mc:null,reason:'Fixture reduction'};
+  validateReview(r,p);
+  assert.throws(()=>validateReview({...r,paper_action:{...r.paper_action,action:'ADD',percent:20,entry_low_mc:1,entry_high_mc:2}},p),/ENTRY_NOT_QUALIFIED/);
+  assert.throws(()=>validateReview({...r,paper_action:null,strategy:{operation:'REVISE',markdown:'Unsupported market rewrite'}},p),/MARKET_COVERAGE_UNAVAILABLE/);
+});
+
 test('research packet preserves every normalized field and its original partial-update proof without sharing mutable references',t=>{
   const d=directory(t);let clock=Date.parse('2026-10-27T12:40:00Z');
   // Fixture-only admission to exercise serialization. Real FeedBook remains

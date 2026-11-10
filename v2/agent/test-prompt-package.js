@@ -83,7 +83,7 @@ test('a directory cannot masquerade as a required instruction file', (t) => {
 
 test('the real CLI check prints metadata only, with the worked example included', () => {
   const result = JSON.parse(execFileSync(process.execPath, [path.join(__dirname, 'build-prompt.js'), '--check'], { encoding: 'utf8' }));
-  assert.equal(result.version, '1.1.0');
+  assert.equal(result.version, '1.2.0');
   assert.deepEqual(result.manifest.map((item) => item.file), [...POLICY_FILES]);
   assert.equal(result.text, undefined);
   assert.match(result.sha256, /^[a-f0-9]{64}$/);

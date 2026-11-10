@@ -66,11 +66,23 @@ function attachMarketSocket(socket,feed,{book,currentSockets,receive,unavailable
 }
 
 async function collect({seconds=60,headless=false,outputDir=path.resolve(__dirname,'../../v2-runtime/market'),signal,onView=()=>{}}={}){
-  if(!Number.isInteger(seconds)||seconds<20||seconds>3600)throw Error('LIVE_DURATION_OUT_OF_BOUNDS');
+  if(seconds!==null&&(!Number.isInteger(seconds)||seconds<20||seconds>3600))throw Error('LIVE_DURATION_OUT_OF_BOUNDS');
   if(typeof headless!=='boolean')throw Error('INVALID_BROWSER_MODE');
   const {chromium}=require('playwright');
   const {launchManagedPersistentContext}=require('../../gmgn-browser-profile');
-  const book=new FeedBook();let managed,cdp,stopping=false,terminalError=null;
+  const book=new FeedBook();let managed,cdp,stopping=false,terminalError=null,researchPage,researchBusy=false;
+  async function acquireResearchPage(){
+    if(stopping||!managed)throw Error('COLLECTOR_RESEARCH_PAGE_UNAVAILABLE');
+    if(researchBusy)throw Error('COLLECTOR_RESEARCH_PAGE_BUSY');
+    if(require('node:os').freemem()<1.5*1024**3)throw Error('COLLECTOR_RESEARCH_RAM_RESERVE');
+    researchBusy=true;
+    try{
+      if(!researchPage){researchPage=await managed.context.newPage();}
+      if(stopping||researchPage.isClosed())throw Error('COLLECTOR_RESEARCH_PAGE_UNAVAILABLE');
+      let released=false;
+      return{owned:true,page:researchPage,release:async()=>{if(!released){released=true;researchBusy=false;}}};
+    }catch(error){researchBusy=false;throw error;}
+  }
   let eventIndex=0,writeAt=0;
   const templates=new Map(),socketEndpoints=new Map(),currentSockets=new Map(),diagnostics=[];
   const active=new Set(),workerRequests=new Map(),refreshFailures={migrated:0,trending:0};
@@ -87,7 +99,7 @@ async function collect({seconds=60,headless=false,outputDir=path.resolve(__dirna
   const persist=(force=false)=>{
     if(!force&&Date.now()-writeAt<1000)return;
     writeAt=Date.now();const view=book.view();view.evidence={file:'events.jsonl',last_sequence:eventIndex};
-    atomic(path.join(outputDir,'market.json'),view);onView(view);
+    atomic(path.join(outputDir,'market.json'),view);onView(view,book,{acquirePage:acquireResearchPage});
   };
   const fail=(feed,reason)=>{book.fault(feed,reason);record('source_failure',{feed,reason});persist(true);};
   const sourceFeed=url=>Object.keys(PATHS).find(feed=>route(url)?.path===PATHS[feed]);
@@ -141,7 +153,8 @@ async function collect({seconds=60,headless=false,outputDir=path.resolve(__dirna
     const shared=new Set();
     for(const [feed,url] of [['migrated','https://gmgn.ai/'],['trending','https://gmgn.ai/trend?chain=sol']]){
       const navigation=await page.goto(url,{waitUntil:'domcontentloaded',timeout:20000});
-      if(navigation?.status()!==200||/just a moment|attention required|verify you are human/i.test(await page.title()))throw Error('BROWSER_PAGE_BLOCKED');
+      if(navigation?.status()!==200)throw Error('PUBLIC_HTTP_'+(navigation?.status()??'UNKNOWN'));
+      if(/just a moment|attention required|verify you are human/i.test(await page.title()))throw Error('BROWSER_PAGE_BLOCKED');
       const targets=await cdp.send('Target.getTargets');
       for(const target of targets.targetInfos.filter(t=>t.type==='shared_worker'&&/^https:\/\/gmgn\.ai\//.test(t.url)).slice(0,4)){
         if(shared.has(target.targetId))continue;
@@ -203,7 +216,7 @@ async function collect({seconds=60,headless=false,outputDir=path.resolve(__dirna
     };
     await refresh('migrated');await refresh('trending');
     const started=Date.now(),lastRefresh={migrated:started,trending:started};
-    while(Date.now()-started<seconds*1000&&!signal?.aborted&&!stopping){
+    while((seconds===null||Date.now()-started<seconds*1000)&&!signal?.aborted&&!stopping){
       for(const feed of Object.keys(PATHS)){
         if(Date.now()-lastRefresh[feed]>15000||(book.faults[feed]&&Date.now()-lastRefresh[feed]>5000)){
           // Auth/external failures do not trigger restart or an unbounded retry loop.

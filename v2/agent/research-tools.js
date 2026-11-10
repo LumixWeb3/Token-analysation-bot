@@ -6,7 +6,7 @@ const clone=x=>JSON.parse(JSON.stringify(x));
 const string={type:'string'},object=properties=>({type:'object',additionalProperties:false,properties});
 const definitions=[
   {name:'research_collect',description:'Collect exact known-token GMGN evidence or public X evidence. Failed source attempts remain explicit.',inputSchema:{...object({kind:{type:'string',enum:['gmgn_token','x_link','x_search']},input:string,reason:string}),required:['kind','input','reason']}},
-  {name:'research_browser',description:'Read public websites in the application-owned browser. Use native web search for general research; navigate project/token sources for direct verification. No account actions.',inputSchema:{...object({action:{type:'string',enum:['navigate','read','follow','expand','scroll']},url:string,snapshot_id:string,node_id:string,reason:string}),required:['action','reason']}},
+  {name:'research_browser',description:'Research websites in the owned browser. Navigate links, click reading controls, fill search boxes, read or scroll. CAPTCHA challenges require owner action. Use native web search first for general research.',inputSchema:{...object({action:{type:'string',enum:['navigate','read','follow','expand','scroll','click','fill']},url:string,snapshot_id:string,node_id:string,text:string,reason:string}),required:['action','reason']}},
   {name:'discovery_read',description:'Read current qualified Trending and Migrated discovery scopes and their versions.',inputSchema:object({})},
   {name:'discovery_set_trending_filters',description:'Change only the authorized V2 Trending filters using an expected version. A verified change ends the current frozen discovery scope.',inputSchema:{...object({expected_version:{anyOf:[{type:'integer'},string]},chain:{type:'string',enum:['solana','sol','robinhood']},patch:{type:'object'},reason:string,source_ids:{type:'array',items:string}}),required:['expected_version','chain','patch','reason','source_ids']}}
 ];
@@ -30,7 +30,7 @@ function createResearchTools({broker=null,feedController=null,browserController=
     const definition=definitions.find(d=>d.name===name);if(!definition)throw Error('RESEARCH_TOOL_UNKNOWN');
     if(!args||typeof args!=='object'||Array.isArray(args)||Object.keys(args).some(k=>!Object.hasOwn(definition.inputSchema.properties,k))||
       (definition.inputSchema.required??[]).some(k=>!Object.hasOwn(args,k)))throw Error('RESEARCH_TOOL_ARGUMENTS');
-    for(const key of ['reason','input','url','snapshot_id','node_id'])if(Object.hasOwn(args,key)&&(typeof args[key]!=='string'||!args[key].trim()||args[key].length>(key==='reason'?10000:8192)))throw Error('RESEARCH_TOOL_ARGUMENTS');
+    for(const key of ['reason','input','url','snapshot_id','node_id','text'])if(Object.hasOwn(args,key)&&(typeof args[key]!=='string'||!args[key].trim()||args[key].length>(key==='reason'?10000:key==='text'?1000:8192)))throw Error('RESEARCH_TOOL_ARGUMENTS');
     if(busy)throw Error('RESEARCH_TOOLS_BUSY');busy=true;
     try{
       let result;
@@ -39,7 +39,7 @@ function createResearchTools({broker=null,feedController=null,browserController=
         if(args.kind==='gmgn_token'&&!allowedCoins.has(coinIdentity(args.input).coin_id))throw Error('UNKNOWN_RESEARCH_COIN');
         result=broker?await broker.collect(clone(args)):{request:clone(args),status:'UNVERIFIED',reason:'RESEARCH_BROKER_UNAVAILABLE',sources:[],token_evidence:[]};
       }else if(name==='research_browser'){
-        if(!['navigate','read','follow','expand','scroll'].includes(args.action))throw Error('RESEARCH_TOOL_ARGUMENTS');
+        if(!['navigate','read','follow','expand','scroll','click','fill'].includes(args.action))throw Error('RESEARCH_TOOL_ARGUMENTS');
         result=browserController?await browserController.perform(clone(args)):{status:'UNVERIFIED',reason:'OWNED_BROWSER_NOT_CONFIGURED',sources:[],token_evidence:[]};
       }else if(name==='discovery_read'){
         result=feedController?await feedController.read():{status:'UNAVAILABLE',reason:'DISCOVERY_CONTROLLER_NOT_CONFIGURED'};
@@ -47,12 +47,12 @@ function createResearchTools({broker=null,feedController=null,browserController=
         if(!['solana','sol','robinhood'].includes(args.chain)||!args.patch||typeof args.patch!=='object'||Array.isArray(args.patch)||
           !Array.isArray(args.source_ids)||args.source_ids.some(s=>typeof s!=='string'||!s.trim())||
           !((Number.isSafeInteger(args.expected_version)&&args.expected_version>=0)||(typeof args.expected_version==='string'&&args.expected_version.trim())))throw Error('RESEARCH_TOOL_ARGUMENTS');
-        result=feedController?await feedController.update({...clone(args),chain:args.chain==='solana'?'sol':args.chain,feed:'trending'}):{changed:false,status:'UNAVAILABLE',reason:'DISCOVERY_CONTROLLER_NOT_CONFIGURED'};
+        result=typeof feedController?.update==='function'?await feedController.update({...clone(args),chain:args.chain==='solana'?'sol':args.chain,feed:'trending'}):{changed:false,status:'UNAVAILABLE',reason:'VERIFIED_DISCOVERY_MUTATION_NOT_CONFIGURED'};
         if(result?.changed===true)result={...result,scope_changed:true};
       }
       return recordResult(result);
     }finally{busy=false;}
   }
-  return{definitions:clone(definitions),callTool,sources,recordResult,capabilities:{browser:browserController?'OWNED_PUBLIC_BROWSER':'UNAVAILABLE',filter_updates:feedController?'VERSIONED_TRENDING_ONLY':'UNAVAILABLE'}};
+  return{definitions:clone(definitions),callTool,sources,recordResult,capabilities:{browser:browserController?'OWNED_PUBLIC_BROWSER':'UNAVAILABLE',filter_updates:typeof feedController?.update==='function'?'VERSIONED_TRENDING_ONLY':'UNAVAILABLE'}};
 }
 module.exports={createResearchTools,definitions};

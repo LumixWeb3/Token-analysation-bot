@@ -61,6 +61,9 @@ test('owned browser rejects nonowned leases, local DNS, private routes and unres
   assert.throws(()=>researchUrl('https://example.com/%61dmin'),/ROUTE/);assert.throws(()=>researchUrl('https://x.com/messages'),/ROUTE/);
   for(const ip of ['127.0.0.1','10.1.1.1','192.168.1.1','169.254.169.254','100.64.0.1','::1','::ffff:127.0.0.1','2001:db8::1'])assert.equal(publicAddress(ip),false);
   assert(publicAddress('93.184.216.34'));assert(publicAddress('2606:4700::1111'));
+  assert(publicAddress('192.0.43.8'), 'IANA public web address is outside the reserved /24 blocks');
+  assert(publicAddress('192.2.1.1'), 'public 192.2/16 must not be mistaken for 192.0.2/24');
+  for(const ip of ['192.0.0.1','192.0.2.1','192.168.1.1'])assert.equal(publicAddress(ip),false);
   const privateController=createOwnedBrowserController({acquirePage:async()=>({owned:true,page:fixturePage(),release:async()=>{}}),lookup:async()=>[{address:'127.0.0.1'}]});
   assert.equal((await privateController.perform({action:'navigate',url:'https://example.com',reason:'Inspect'})).reason,'BROWSER_DESTINATION_NOT_PUBLIC');
   const unowned=createOwnedBrowserController({acquirePage:async()=>({owned:false,page:fixturePage(),release:async()=>{throw Error('must not release');}})});

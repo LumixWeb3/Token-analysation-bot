@@ -118,9 +118,11 @@ async function launchManagedPersistentContext({
     headless = true,
     viewport = { width: 1440, height: 1400 },
     userAgent,
+    serviceWorkers,
     args = []
 } = {}) {
     if (!chromium?.launchPersistentContext) throw new Error('Playwright chromium is required');
+    if (serviceWorkers !== undefined && !['allow', 'block'].includes(serviceWorkers)) throw new Error('Invalid browser service-worker policy');
     const directory = profileDirectory({ rootDir, role, chain, profileName });
     const lock = acquireProfileLock(directory);
     let context = null;
@@ -130,6 +132,7 @@ async function launchManagedPersistentContext({
             headless,
             viewport,
             userAgent,
+            ...(serviceWorkers === undefined ? {} : { serviceWorkers }),
             args
         });
         const existingPages = context.pages();

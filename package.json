@@ -13,7 +13,10 @@
     "check:main": "node v2/agent/verify-sdk-connection.js --main",
     "check:recal": "node v2/agent/verify-sdk-connection.js --recal",
     "collect:check": "node v2/market/collector.js --live-read-only --seconds=60",
-    "axiom:inspect": "node v2/agent/inspect-axiom.js --open"
+    "axiom:inspect": "node v2/agent/inspect-axiom.js --open",
+    "check:browser": "node v2/agent/verify-browser-agent.js --main",
+    "check:accounts": "node v2/agent/verify-browser-accounts.js --live",
+    "start:paper": "node v2/run.js --paper"
   },
   "keywords": [],
   "author": "",

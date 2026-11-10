@@ -185,3 +185,16 @@ test('X handle case changes do not break a real link, while different authors an
   const other=source({}, {kind:'x_link',input:'https://x.com/Different',reason:'Other account'});
   assert.equal(tokenForPacket(await evidence(),[other],NOW).packet.research_ready,false);
 });
+
+test('paper response requires accepted strategy, exact cited qualified token and matching account revision',async()=>{
+  const s=source(),e=await evidence(),token=tokenForPacket(e,[s],NOW).packet;
+  const packet={controls:{required_initial_coin_ids:[SOL],account_state:{revision:4,positions:[]}},
+    state:{strategy_status:'RESEARCHED',reviewed_coin_ids:[SOL],watches:[]},sources:[s],token_research:[token]};
+  const response={notes:'Fixture entry evaluation',reviewed_coin_ids:[SOL],cited_source_ids:[e.id],strategy:null,watches:[],research_requests:[],next_review_at:null,
+    paper_action:{action:'BUY',coin_id:SOL,expected_account_revision:4,percent:20,entry_low_mc:200000,entry_high_mc:300000,reason:'Synthetic setup'}};
+  assert.equal(validateReview(response,packet,{now:NOW}),response);
+  for(const altered of [{...response,paper_action:{...response.paper_action,expected_account_revision:3}},
+    {...response,cited_source_ids:[]},{...response,strategy:{operation:'NOTE',markdown:'Change'}}])assert.throws(()=>validateReview(altered,packet,{now:NOW}));
+  assert.throws(()=>validateReview(response,{...packet,state:{...packet.state,strategy_status:'UNINITIALIZED'}},{now:NOW}),/ENTRY_EVIDENCE/);
+  assert.throws(()=>validateReview(response,{...packet,token_research:[{...token,research_ready:false}]},{now:NOW}),/ENTRY_EVIDENCE/);
+});

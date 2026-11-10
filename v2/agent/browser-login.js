@@ -7,7 +7,8 @@ const { profileDirectory, acquireProfileLock } = require('../../gmgn-browser-pro
 
 const SITES = Object.freeze({
   gmgn: { profileName: 'gmgn-login', url: 'https://gmgn.ai' },
-  axiom: { profileName: 'axiom-research', url: 'https://axiom.trade' }
+  axiom: { profileName: 'axiom-research', url: 'https://axiom.trade' },
+  x: { profileName: 'axiom-research', url: 'https://x.com' }
 });
 
 async function openBrowserLogin({ site, spawnImpl = spawn, chromePath = findChromePath(),
@@ -36,7 +37,7 @@ async function openBrowserLogin({ site, spawnImpl = spawn, chromePath = findChro
 if (require.main === module) {
   const args = process.argv.slice(2);
   if (args.length !== 1 || !args[0].startsWith('--site=')) {
-    process.stderr.write('Usage: node v2/agent/browser-login.js --site=gmgn | --site=axiom\n');
+    process.stderr.write('Usage: node v2/agent/browser-login.js --site=gmgn | --site=axiom | --site=x\n');
     process.exitCode = 1;
   } else {
     openBrowserLogin({ site: args[0].slice(7) }).then(

@@ -59,7 +59,7 @@ function buildPrompt(rootDir = __dirname) {
   const bytes = Buffer.byteLength(text, 'utf8');
   if (bytes > MAX_BUNDLE_BYTES) throw new Error('Instruction bundle exceeds byte limit');
   return {
-    version: '1.1.0',
+    version: '1.2.0',
     text,
     bytes,
     words: manifest.reduce((total, item) => total + item.words, 0),
