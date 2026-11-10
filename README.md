@@ -147,7 +147,7 @@ Local health, accepted strategy, review history and action outcomes are under ig
 
 ## Verification status and remaining work
 
-Offline accounting, model handoff, scheduling and recovery fixtures pass. Bounded live discovery, exact-token/chart capture, shared-profile research and a genuine model-driven browser check passed in development. These checks establish the observed components. The complete natural strategy-to-fill session and overnight uptime remain unverified.
+Offline accounting, model handoff, scheduling and recovery fixtures pass. Bounded live discovery, exact-token/chart capture, shared-profile research and a genuine model-driven browser check passed in development. These checks establish the observed components. The complete natural strategy-to-fill session and overnight uptime remain unverified. The first live follow-up currently stops at `RESEARCH_INPUT_OVERSIZE_NO_TRUNCATION` after detailed token/social collection. Lossless input handling must be repaired and verified before a full deployment.
 
 Automatic Trending mutation requires an integrated live UI/query verifier and currently reports unavailable in this runner. Native Axiom ranked top20 order, labels and freshness need qualification. Abandoned locks or interrupted ACTIVE research checkpoints require deliberate revalidation. The browser destination screen also needs deployment-level network isolation for stronger redirect/DNS-rebinding containment.
 
