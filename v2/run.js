@@ -14,23 +14,40 @@ const {researchSource}=require('./agent/research-host');
 const {observationCycle}=require('./agent/observation-cycle');
 const {createPaperExecution}=require('./agent/paper-execution');
 const {settlePaperDecision,refreshPositionMarks}=require('./agent/paper-settlement');
+const {createMemoryMonitor}=require('./agent/memory-monitor');
+const {readUsage}=require('./agent/codex-runner');
 
 async function runBot({accountFile,stateDir=path.resolve(__dirname,'../v2-runtime/bot'),seconds=3600,
   headless=false,signal,collectMarket=collect,research=runResearchSession,now=()=>Date.now(),
-  sleep=delay,createBrowser=createResearchBrowser,onStatus=()=>{}}={}){
+  sleep=delay,createBrowser=createResearchBrowser,onStatus=()=>{},freeMemory=require('node:os').freemem}={}){
   if(seconds!==null&&(!Number.isInteger(seconds)||seconds<20||seconds>3600))throw Error('BOT_DURATION_INVALID');
+  const memory=createMemoryMonitor({freeMemory,now});
+  if(memory.sample().available_bytes<2.25*1024**3)throw Error('BOT_RAM_LAUNCH_RESERVE');
   const execution=createPaperExecution({filePath:accountFile,now});execution.context();
   fs.mkdirSync(stateDir,{recursive:true});
   const lockFile=path.join(stateDir,'bot.lock'),lock=fs.openSync(lockFile,'wx');
   fs.writeFileSync(lock,JSON.stringify({pid:process.pid,started_at:new Date(now()).toISOString()}));fs.fsyncSync(lock);
   const abort=new AbortController(),cancel=()=>abort.abort();signal?.addEventListener('abort',cancel,{once:true});if(signal?.aborted)cancel();
-  const browser=createBrowser({headless});let sourcePageProvider=null;
-  const acquirePage=options=>options.service==='gmgn'&&sourcePageProvider?sourcePageProvider(options):browser.acquirePage(options);
+  let browser=createBrowser({headless}),sourcePageProvider=null;
+  const acquirePage=options=>{
+    if(options.service==='gmgn'&&sourcePageProvider)return sourcePageProvider(options);
+    browser??=createBrowser({headless});return browser.acquirePage(options);
+  };
   const broker=createResearchBroker({acquirePage,xApi:researchSource,now});
   let liveBook=null,sourceEnded=false,sourceFailure=null,cycle=null,pendingRun=null,lastRun=0,lastMain=0,lastCohort=null;
   const sessionDirectory=path.join(stateDir,'market-'+crypto.randomUUID());
-  let source;
-  function status(value){atomic(path.join(stateDir,'health.json'),{...value,at:new Date(now()).toISOString(),paper_only:true});onStatus(value);}
+  let source,stopReason=null,lastStatus={status:'STARTING'},statusSince=new Date(now()).toISOString();
+  function publishHealth(){
+    const view=liveBook?.view();
+    atomic(path.join(stateDir,'health.json'),{...lastStatus,at:new Date(now()).toISOString(),status_since:statusSince,pid:process.pid,paper_only:true,
+      memory:memory.latest(),source:view?{ready:view.research_ready,reasons:view.reasons,groups:view.groups.map(g=>({feed:g.feed,chain:g.chain,rows:g.rows.length,snapshot_age_ms:g.snapshot_age_ms,transport_age_ms:g.transport_age_ms}))}:null});
+  }
+  function status(value){lastStatus=value;statusSince=new Date(now()).toISOString();publishHealth();onStatus(value);}
+  const healthTimer=setInterval(()=>{
+    try{if(memory.sample().stop_required){stopReason='BOT_RAM_PRESSURE';abort.abort();}publishHealth();}
+    catch{stopReason='BOT_HEALTH_WRITE_FAILED';abort.abort();}
+  },15000);
+  healthTimer.unref();
   try{
     if(checkpoint.exists(stateDir))throw Error('BOT_PENDING_RESEARCH_REVALIDATION_REQUIRED');
     source=Promise.resolve().then(()=>collectMarket({seconds,headless,outputDir:sessionDirectory,signal:abort.signal,
@@ -55,9 +72,21 @@ async function runBot({accountFile,stateDir=path.resolve(__dirname,'../v2-runtim
         const role=view.research_ready&&(state.strategy_status==='UNINITIALIZED'||mainDue)?'main':'recal';
         const positionCoverage=await refreshPositionMarks({execution,broker,now});
         status({status:'RESEARCHING',role,position_quote_coverage:positionCoverage});
-        const result=await research({book:cycle,stateDir,role,wakeReason:pendingRun?'RESEARCH_CONTINUATION':mainDue?'MARKET_OBSERVATION':'WATCH_OR_POSITION_REVIEW',
+        let result;
+        try{result=await research({book:cycle,stateDir,role,wakeReason:pendingRun?'RESEARCH_CONTINUATION':mainDue?'MARKET_OBSERVATION':'WATCH_OR_POSITION_REVIEW',
           acquirePage,accountState:execution.context(),resumeRunId:pendingRun,
-          feedController:{read:async()=>liveBook.view()},signal:abort.signal,maxRounds:3});
+          feedController:{read:async()=>liveBook.view()},signal:abort.signal,maxRounds:3,
+          usageProvider:options=>{
+            const file=path.join(stateDir,'usage-authorization.json');
+            let authorization=null;
+            if(fs.existsSync(file)){
+              const stat=fs.lstatSync(file);
+              if(!stat.isFile()||stat.isSymbolicLink()||stat.size>4096)throw Error('CODEX_USAGE_AUTHORIZATION_INVALID');
+              authorization=JSON.parse(fs.readFileSync(file,'utf8'));
+            }
+            return readUsage({...options,authorization});
+          }});
+        }finally{if(browser){await browser.close();browser=null;}}
         lastRun=now();if(role==='main'){lastMain=lastRun;lastCohort=cohort;}
         pendingRun=result.status==='RESEARCH_IN_PROGRESS'?result.run_id:null;
         status({status:result.status,role,run_id:result.run_id});
@@ -68,15 +97,19 @@ async function runBot({accountFile,stateDir=path.resolve(__dirname,'../v2-runtim
       await sleep(1000,undefined,{signal:abort.signal}).catch(()=>{});
     }
     if(sourceFailure)throw sourceFailure;
+    if(stopReason)throw Error(stopReason);
     status({status:'STOPPED',reason:abort.signal.aborted?'OWNER_STOP':'BOUNDED_RUN_ENDED'});
     return{status:'STOPPED',paper_only:true};
   }catch(error){
-    if(abort.signal.aborted){status({status:'STOPPED',reason:'OWNER_STOP'});return{status:'STOPPED',paper_only:true};}
-    const reason=/^[A-Z][A-Z0-9_:,.-]{1,180}$/.test(error.message)?error.message:'BOT_UNAVAILABLE';
+    if(abort.signal.aborted&&!stopReason){status({status:'STOPPED',reason:'OWNER_STOP'});return{status:'STOPPED',paper_only:true};}
+    const reason=stopReason??(/^[A-Z][A-Z0-9_:,.-]{1,180}$/.test(error.message)?error.message:'BOT_UNAVAILABLE');
     status({status:'BLOCKED',reason});throw Error(reason);
   }finally{
     abort.abort();signal?.removeEventListener('abort',cancel);
-    try{if(source)await source;}finally{try{await browser.close();}finally{fs.closeSync(lock);fs.unlinkSync(lockFile);}}
+    clearInterval(healthTimer);
+    try{if(source)await source;}finally{try{if(browser)await browser.close();}finally{
+      try{memory.sample();publishHealth();}finally{fs.closeSync(lock);fs.unlinkSync(lockFile);}
+    }}
   }
 }
 

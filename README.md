@@ -127,7 +127,7 @@ Supply the absolute path to that file. Replace the example path with your checko
 npm run start:paper -- --account-file=C:/AlphaHands/paper-account.json --seconds=600
 ```
 
-This starts a bounded ten-minute paper session. Installed Chrome opens visibly by default because the latest background GMGN check was blocked while normal visible access passed. The source collector shares its GMGN profile with an exclusive token-research tab. X/Axiom use one additional lazy research browser. Keep RAM available. A source challenge requires manual completion.
+This starts a bounded ten-minute paper session. Installed Chrome opens visibly by default because the latest background GMGN check was blocked while normal visible access passed. The source collector shares its GMGN profile with an exclusive token-research tab. X/Axiom use one additional lazy research browser. Keep RAM available. Token-research tabs close after collection and the X/Axiom browser closes between reviews. RAM and heartbeat data refresh every15 seconds, including during inference. Below1.25 GB available for30 seconds, the runner stops its owned resources while preserving the account and holdings. Browser launch/reuse floors remain2.25/1.5 GB. A source challenge requires manual completion.
 
 After the bounded deployment qualifies, the same runner can continue until you stop it.
 
@@ -135,9 +135,11 @@ After the bounded deployment qualifies, the same runner can continue until you s
 npm run start:paper -- --account-file=C:/AlphaHands/paper-account.json --continuous
 ```
 
-Stop with Ctrl+C. Shutdown preserves holdings and closes owned resources. Source/auth/usage failures and unresolved state errors block affected work. The runner never enables a real wallet.
+Stop with Ctrl+C. Shutdown preserves holdings and closes owned resources. Source/auth/usage failures and unresolved state errors block affected work. The runner never enables a real wallet. The normal usage gate preserves30 percent plus a five-percent start buffer. An explicitly approved local waiver can be bound to one exact five-hour reset window, permitting new inference below95 percent. It expires automatically when that window changes.
 
 The main model observes both configured feed scopes, forms the strategy and considers new arrivals. Luna handles recurring watch/position reviews against that shared strategy. Ordinary recals default to five minutes and a main refresh to ten minutes, with coalesced earlier wakes for arrivals or due watches. Fixed observation cohorts expire after ten minutes and retain their original source timestamps.
+
+Discovery frame hashes are citable for their observed feed fields. They do not qualify X, charts or quotes. Invalid reviews retain their input/output audit and never become accepted decisions.
 
 Paper proposals are accepted only through the structured action interface. New exposure requires an accepted strategy, qualified exact-token/chart/linked-X evidence, current account revision and a fresh USD quote inside the proposed entry range. Existing costs, 25 percent cash/per-coin caps, five-position limit and action cooldown remain enforced. Reductions use remaining holdings. A replay reconciles the original receipt. It cannot create a duplicate fill.
 

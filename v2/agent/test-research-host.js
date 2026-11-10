@@ -3,7 +3,7 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const {FeedBook,SCOPE}=require('../market/network-feed');
 const fixture=require('../market/fixtures/gmgn-network-2026-10-27.json');
-const {packetFor,validateReview,researchSource,readState,commitReview,runResearch}=require('./research-host');
+const {packetFor,validateReview,researchSource,readState,commitReview,runResearch,sourceCatalogue}=require('./research-host');
 const {quotaFromResult,runCodex}=require('./codex-runner');
 const clone=x=>JSON.parse(JSON.stringify(x));
 function directory(t){const d=fs.mkdtempSync(path.join(os.tmpdir(),'alphahands-v2-unit-'));t.after(()=>{for(const f of fs.readdirSync(d)){assert(['research.jsonl','STRATEGY.md'].includes(f));fs.unlinkSync(path.join(d,f));}fs.rmdirSync(d);});return d;}
@@ -18,6 +18,18 @@ test('owner-accepted feed scope admits packets, while unavailable transport bloc
   assert(book.view().research_ready);assert.equal(packetFor(book,readState(d)).market.ui_equivalence,'OWNER_ACCEPTED_BOUNDED_DIFFERENCE');
   book.connection('trending',false);
   let calls=0;await assert.rejects(runResearch({book,stateDir:d,execute:async()=>{calls++;throw Error('MODEL_MUST_NOT_RUN');}}),/MARKET_NOT_READY/);assert.equal(calls,0);
+});
+
+test('real feed observation hashes are citable within their scope while stale and unknown citations fail',t=>{
+  const d=directory(t),clock=Date.now(),book=new FeedBook({now:()=>clock});
+  for(const feed of ['migrated','trending']){assert(book.snapshot(feed,fixture[feed],SCOPE[feed]).accepted);book.connection(feed,true);}
+  const p=packetFor(book,readState(d)),catalogue=sourceCatalogue(p,clock),feedSource=catalogue.find(s=>s.kind==='DISCOVERY_FEED_RECORD');
+  assert(feedSource?.qualified);assert.equal(catalogue.filter(s=>s.kind==='X_SOURCE').length,0);
+  const r=response();r.cited_source_ids=[feedSource.id];assert.equal(validateReview(r,p,{now:clock}),r);
+  assert.throws(()=>validateReview(r,p,{now:clock+300001}),/UNVERIFIED_SOURCE_CITATION/);
+  assert.throws(()=>validateReview({...r,cited_source_ids:['f'.repeat(64)]},p,{now:clock}),/UNVERIFIED_SOURCE_CITATION/);
+  const unavailable={...p,market:{...p.market,research_ready:false}};
+  assert.throws(()=>validateReview(r,unavailable,{now:clock}),/UNVERIFIED_SOURCE_CITATION/);
 });
 
 test('discovery failure permits held-position review but cannot form a new market strategy or add exposure',t=>{

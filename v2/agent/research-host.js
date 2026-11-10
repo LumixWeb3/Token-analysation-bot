@@ -48,6 +48,20 @@ function readState(directory){
 function sourceCatalogue(packet,now=Date.now()){
   const refs=(packet.sources??[]).map(s=>s.schema?checkedSource(s,now):s)
     .map(s=>({id:s.id,kind:s.schema==='alphahands.web-evidence.v1'?(s.request.kind==='web_page'?'WEB_PAGE':'WEB_SEARCH_SNIPPETS'):'X_SOURCE',qualified:s.qualified===true,status:s.status??'UNVERIFIED'}));
+  const feedRefs=new Map();
+  for(const group of packet.market?.groups??[])for(const row of group.rows??[])
+    for(const observation of row.field_provenance?.observations??[]){
+      const at=stamp(observation.received_at),fresh=Number.isFinite(at)&&at<=now&&now-at<=MAX_CAPTURE_AGE_MS;
+      if(!/^[a-f0-9]{64}$/.test(observation.sha256??''))continue;
+      const qualified=packet.market.research_ready===true&&fresh;
+      const previous=feedRefs.get(observation.sha256);
+      if(previous&&(previous.qualified&&!qualified||previous.qualified===qualified&&stamp(previous.received_at)>=at))continue;
+      feedRefs.set(observation.sha256,{id:observation.sha256,kind:'DISCOVERY_FEED_RECORD',qualified,
+        status:qualified?'QUALIFIED_DISCOVERY_OBSERVATION':'UNVERIFIED_DISCOVERY_OBSERVATION',
+        source:observation.source,received_at:observation.received_at,
+        scope:'Observed discovery fields only. This does not qualify linked X, a chart or an execution quote.'});
+    }
+  refs.push(...feedRefs.values());
   for(const token of packet.token_research??[]){
     const at=stamp(token.collected_at),fresh=Number.isFinite(at)&&at<=now&&now-at<=MAX_CAPTURE_AGE_MS;
     refs.push({id:token.evidence_id,kind:'GMGN_TOKEN_SNAPSHOT',coin_id:token.coin_id,qualified:fresh,
@@ -271,7 +285,14 @@ async function runResearch({book,stateDir,execute=runCodex,source=researchSource
       // Only host-owned tool receipts join the packet, never model-authored evidence.
       const finalPacket=makePacket(book,state,sources,tokens.slice(-1),{capabilities:broker?.capabilities??{},requestResults,progress});
       Object.assign(finalPacket.controls,packet.controls);finalPacket.available_token_evidence=tokens.map(e=>({coin_id:e.coin_id,evidence_id:e.id,collected_at:e.collected_at,selected:e===tokens.at(-1)}));
-      const response=validateReview(JSON.parse(output.text),finalPacket);
+      let response;
+      try{response=validateReview(JSON.parse(output.text),finalPacket);}
+      catch(error){
+        fs.appendFileSync(path.join(stateDir,'turns.jsonl'),JSON.stringify({run_id:runId,round,status:'REJECTED_REVIEW',
+          validation_error:/^[A-Z][A-Z0-9_:,]+$/.test(error.message)?error.message:'RESEARCH_RESPONSE_INVALID',input_packet:packet,packet:finalPacket,
+          raw_response:output.text,model:output.model??null,model_audit:storedAudit({items:output.items??[],native_search:output.native_search??[],sdk_events:output.sdk_events??[]}),policy_manifest:policy.manifest})+'\n');
+        throw error;
+      }
       fs.appendFileSync(path.join(stateDir,'turns.jsonl'),JSON.stringify({run_id:runId,round,input_packet:packet,packet:finalPacket,response,model:output.model??null,model_audit:storedAudit({items:output.items??[],native_search:output.native_search??[],sdk_events:output.sdk_events??[]}),policy_manifest:policy.manifest})+'\n');
       state.reviewed_coin_ids=[...new Set([...state.reviewed_coin_ids,...response.reviewed_coin_ids])];
       progress.push({round,recorded_at:packet.market.recorded_at,notes:response.notes,reviewed_coin_ids:clone(response.reviewed_coin_ids),research_requests:clone(response.research_requests)});

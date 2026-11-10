@@ -9,6 +9,12 @@ runner preserves an existing account, balances, costs and risk limits. It never
 starts from imports or silently initializes an account. A shared paper-ledger
 module supports atomic fills and duplicate-safe receipt reconciliation.
 
+RAM/heartbeat monitoring runs every15 seconds. Token pages close after collection
+and the research browser closes between reviews. Discovery frame hashes qualify
+only their original observed feed fields. Invalid reviews retain an audit and
+fail before accepting strategy or paper actions. A local explicit usage waiver
+can be bound to a single reset window, with normal reserve restored afterward.
+
 Offline regressions and bounded live discovery/token/browser checks passed in
 development. Full natural strategy-to-fill operation and overnight uptime remain
 unverified. Automatic Trending mutation lacks its live UI/query verifier. Native

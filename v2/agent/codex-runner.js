@@ -6,15 +6,17 @@ const fs=require('node:fs'),path=require('node:path'),os=require('node:os');
 const {validatePng}=require('./token-evidence');
 const {DISABLED,command,modelForRole,isolatedHome,sdkOptions}=require('./codex-sdk-config');
 const {controlRead,readModelAvailability,assertModelAvailable}=require('./codex-control');
-function quotaFromResult(result){
+function quotaFromResult(result,{authorization=null}={}){
   const bucket=result?.rateLimitsByLimitId?.codex??result?.rateLimits;
   const windows=[bucket?.primary,bucket?.secondary].filter(Boolean),primary=windows.find(w=>w.windowDurationMins===300);
   if(!primary||typeof primary.usedPercent!=='number'||!Number.isFinite(primary.usedPercent)||primary.usedPercent<0||primary.usedPercent>100)throw Error('FIVE_HOUR_USAGE_UNAVAILABLE');
+  const waived=authorization?.schema==='alphahands.usage-authorization.v1'&&authorization.owner_approved===true&&
+    authorization.window_resets_at===primary.resetsAt&&authorization.start_before_percent===95&&Date.now()<primary.resetsAt*1000;
   return{observed_at:new Date().toISOString(),used_percent:primary.usedPercent,window_minutes:300,resets_at:primary.resetsAt,
-    inference_allowed:primary.usedPercent<65&&result?.ordinaryUsageAllowed===true&&!windows.some(w=>w.usedPercent>=100)&&!bucket.rateLimitReachedType&&bucket.spendControlReached!==true,
-    reserve_percent:30,start_buffer_percent:5};
+    inference_allowed:primary.usedPercent<(waived?95:65)&&result?.ordinaryUsageAllowed===true&&!windows.some(w=>w.usedPercent>=100)&&!bucket.rateLimitReachedType&&bucket.spendControlReached!==true,
+    reserve_percent:waived?5:30,start_buffer_percent:waived?0:5,owner_window_waiver:waived};
 }
-async function readUsage(options={}){return quotaFromResult(await controlRead(options));}
+async function readUsage(options={}){return quotaFromResult(await controlRead(options),{authorization:options.authorization});}
 function validateImageInputs(packet,images=[]){
   const expected=(packet?.token_research??[]).filter(t=>t.chart?.ok),seen=new Set();
   if(!Array.isArray(images)||images.length!==expected.length)throw Error('RESEARCH_IMAGE_HANDOFF_INCOMPLETE');

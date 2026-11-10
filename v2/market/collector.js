@@ -80,7 +80,11 @@ async function collect({seconds=60,headless=false,outputDir=path.resolve(__dirna
       if(!researchPage){researchPage=await managed.context.newPage();}
       if(stopping||researchPage.isClosed())throw Error('COLLECTOR_RESEARCH_PAGE_UNAVAILABLE');
       let released=false;
-      return{owned:true,page:researchPage,release:async()=>{if(!released){released=true;researchBusy=false;}}};
+      return{owned:true,page:researchPage,release:async()=>{
+        if(released)return;released=true;
+        const page=researchPage;
+        try{await page.close();researchPage=null;}finally{researchBusy=false;}
+      }};
     }catch(error){researchBusy=false;throw error;}
   }
   let eventIndex=0,writeAt=0;
