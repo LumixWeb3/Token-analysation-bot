@@ -35,6 +35,23 @@ test('model failure closes ephemeral tools and never commits a fabricated comple
   assert.equal(failed.input_bytes,Buffer.byteLength(JSON.stringify(failed.input_packet)));
 });
 
+test('queued website research accepts canonical trailing slashes while rejecting a changed destination',async t=>{
+  const {runResearch}=require('./research-host');
+  for(const changed of [false,true]){
+    const stateDir=directory(t),at=new Date().toISOString();
+    const request={kind:'web_page',input:'https://example.com',reason:'Read the project site'};
+    const normalized={...request,input:changed?'https://other.example.com/':'https://example.com/'};
+    const source=buildWebSource({request:normalized,transport:'PLAYWRIGHT_DOM',capture_started_at:at,collected_at:at,
+      requested_url:normalized.input,final_url:normalized.input,blocks:[{type:'paragraph',text:'Original source text',url:null}],
+      coverage:{scope:'VISIBLE_DOM',status:'COMPLETE_VISIBLE_CAPTURE',bounded:false,omitted_count:0,note:'Fixture only'}});
+    let turns=0;
+    const pending=runResearch({book:book(),stateDir,broker:{capabilities:{},collect:async()=>({request:normalized,status:'COLLECTED',sources:[source],token_evidence:[]})},
+      execute:async()=>{const r=reply();if(turns++===0)r.research_requests=[request];else r.cited_source_ids=[source.id];return{text:JSON.stringify(r)};}});
+    if(changed)await assert.rejects(pending,/RESEARCH_TOOL_RESULT_INVALID/);
+    else{assert.equal((await pending).status,'COMMITTED');assert.equal(turns,2);}
+  }
+});
+
 test('role cache keeps one tool endpoint across reviews and rejects idle or cross-role access',async t=>{
   const stateDir=directory(t),cache=createResearchCache();let starts=0,closed=0,proxy,conversation;
   const options={book:book(),stateDir,cacheSession:cache,browserOptions:false,

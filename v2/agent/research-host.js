@@ -240,11 +240,14 @@ async function runResearch({book,stateDir,execute=runCodex,source=researchSource
       }catch{throw Error('RESEARCH_REVALIDATION_REQUIRED');}
     }else if(resumeRunId)throw Error('RESEARCH_REVALIDATION_REQUIRED:CHECKPOINT_MISSING');
     function acceptCollected(collected,request){
-        if(hash(collected.request)!==hash(request)||!Array.isArray(collected.sources)||!Array.isArray(collected.token_evidence))throw Error('RESEARCH_TOOL_RESULT_INVALID');
+        const expectedRequest=request.kind==='web_page'?{...request,input:publicHttpsUrl(request.input)}:request;
+        const receivedRequest=request.kind==='web_page'&&collected.request?.kind==='web_page'
+          ?{...collected.request,input:publicHttpsUrl(collected.request.input)}:collected.request;
+        if(hash(receivedRequest)!==hash(expectedRequest)||!Array.isArray(collected.sources)||!Array.isArray(collected.token_evidence))throw Error('RESEARCH_TOOL_RESULT_INVALID');
         const consumedAt=Date.parse(book.view().recorded_at),sourceIds=[],tokenIds=[],superseded=[];
         for(const s of collected.sources){const checked=checkedSource(s,consumedAt);
           if(checked.schema==='alphahands.web-evidence.v1'){
-            if(!['web_page','web_search'].includes(request.kind)||checked.request.kind!==request.kind||checked.request.input!==request.input)throw Error('RESEARCH_TOOL_SOURCE_MISMATCH');
+            if(!['web_page','web_search'].includes(request.kind)||checked.request.kind!==request.kind||checked.request.input!==expectedRequest.input)throw Error('RESEARCH_TOOL_SOURCE_MISMATCH');
             sources.push(checked);sourceIds.push(checked.id);continue;
           }
           const unavailableBrowser=request.kind==='browser'&&checked.request.kind==='browser'&&!checked.qualified&&checked.request.input===request.input;
