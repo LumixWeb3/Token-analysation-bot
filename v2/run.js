@@ -19,7 +19,7 @@ const {readUsage}=require('./agent/codex-runner');
 
 async function runBot({accountFile,stateDir=path.resolve(__dirname,'../v2-runtime/bot'),seconds=3600,
   headless=false,signal,collectMarket=collect,research=runResearchSession,now=()=>Date.now(),
-  sleep=delay,createBrowser=createResearchBrowser,onStatus=()=>{},freeMemory=require('node:os').freemem}={}){
+  sleep=delay,createBrowser=createResearchBrowser,onStatus=()=>{},freeMemory=require('node:os').freemem,usageProvider=readUsage}={}){
   if(seconds!==null&&(!Number.isInteger(seconds)||seconds<20||seconds>3600))throw Error('BOT_DURATION_INVALID');
   const memory=createMemoryMonitor({freeMemory,now});
   if(memory.sample().available_bytes<2.25*1024**3)throw Error('BOT_RAM_LAUNCH_RESERVE');
@@ -34,7 +34,8 @@ async function runBot({accountFile,stateDir=path.resolve(__dirname,'../v2-runtim
     browser??=createBrowser({headless});return browser.acquirePage(options);
   };
   const broker=createResearchBroker({acquirePage,xApi:researchSource,now});
-  const caches={main:createResearchCache(),recal:createResearchCache()};
+  const caches={main:createResearchCache({directory:path.join(stateDir,'sdk-main')}),
+    recal:createResearchCache({directory:path.join(stateDir,'sdk-recal')})};
   let liveBook=null,sourceEnded=false,sourceFailure=null,cycle=null,pendingRun=null,lastRun=0,lastMain=0,lastCohort=null;
   let needsReorientation=false,historicalResearch=null;
   const sessionDirectory=path.join(stateDir,'market-'+crypto.randomUUID());
@@ -50,7 +51,18 @@ async function runBot({accountFile,stateDir=path.resolve(__dirname,'../v2-runtim
     catch{stopReason='BOT_HEALTH_WRITE_FAILED';abort.abort();}
   },15000);
   healthTimer.unref();
+  function currentUsage(options={}){
+    const file=path.join(stateDir,'usage-authorization.json');
+    let authorization=null;
+    if(fs.existsSync(file)){
+      const stat=fs.lstatSync(file);
+      if(!stat.isFile()||stat.isSymbolicLink()||stat.size>4096)throw Error('CODEX_USAGE_AUTHORIZATION_INVALID');
+      authorization=JSON.parse(fs.readFileSync(file,'utf8'));
+    }
+    return usageProvider({...options,authorization});
+  }
   try{
+    if(!(await currentUsage({signal:abort.signal})).inference_allowed)throw Error('CODEX_USAGE_RESERVE_REACHED');
     if(checkpoint.exists(stateDir)){
       if(checkpoint.load(stateDir,{hydrate:false}).phase!=='PAUSED')throw Error('BOT_PENDING_RESEARCH_REVALIDATION_REQUIRED');
       needsReorientation=true;
@@ -86,16 +98,7 @@ async function runBot({accountFile,stateDir=path.resolve(__dirname,'../v2-runtim
         try{result=await research({book:cycle,stateDir,role,wakeReason:pendingRun?'RESEARCH_CONTINUATION':mainDue?'MARKET_OBSERVATION':'WATCH_OR_POSITION_REVIEW',
           acquirePage,accountState:execution.context(),resumeRunId:pendingRun,cacheSession:caches[role],historicalResearch,
           feedController:{read:async()=>liveBook.view()},signal:abort.signal,maxRounds:3,
-          usageProvider:options=>{
-            const file=path.join(stateDir,'usage-authorization.json');
-            let authorization=null;
-            if(fs.existsSync(file)){
-              const stat=fs.lstatSync(file);
-              if(!stat.isFile()||stat.isSymbolicLink()||stat.size>4096)throw Error('CODEX_USAGE_AUTHORIZATION_INVALID');
-              authorization=JSON.parse(fs.readFileSync(file,'utf8'));
-            }
-            return readUsage({...options,authorization});
-          }});
+          usageProvider:currentUsage});
         }catch(error){
           if(error.message==='RESEARCH_REVALIDATION_REQUIRED'&&pendingRun&&checkpoint.load(stateDir,{hydrate:false}).phase==='PAUSED'){
             needsReorientation=true;lastRun=now();status({status:'REVALIDATING_PAUSED_RESEARCH'});continue;

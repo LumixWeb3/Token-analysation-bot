@@ -170,3 +170,21 @@ A bounded paper deployment must qualify these operational paths before calling t
 This repository has fresh source-only history. Authentication, credentials, browser profiles, personal operating notes, real account records, private lessons, model transcripts and original Git history are excluded. Historical public fixtures exercise parsing and validation.
 
 Run npm run privacy:check before publishing changes. Keep deployment-specific state in ignored local paths.
+
+## Conversation efficiency
+
+The paper runner keeps separate main/recal SDK conversations under the ignored
+runtime's `sdk-main` and `sdk-recal` directories. Completed turns can resume their
+original thread, workspace and owned MCP address after a normal restart. Keep
+these directories private. An interrupted ACTIVE turn, corrupt packet, occupied
+port or changed policy/model/tool binding blocks recovery for reconciliation.
+
+Follow-up packets use exact changed-subtree updates when smaller. The host
+reconstructs and hashes the full packet before delivery. Full evidence and charts
+remain preserved. `research_input_read` retrieves exact historical packet fields
+when earlier context is unavailable. Its ranges retain explicit counts and source
+times. A cache hit is reported only from returned SDK cached-input counts.
+
+Offline replay measured 17 percent fewer payload bytes over five saved inputs.
+This does not establish a corresponding subscription-usage reduction. First-time
+evidence, growing conversation history and native compaction still consume input.

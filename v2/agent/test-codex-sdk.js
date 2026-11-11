@@ -19,7 +19,7 @@ function fixture(t,{events=[answer,completed],factory}={}){
   const options={home,policy:'Full policy fixture.',packet:{value:0,missing:null,repeated:['same','same']},schema:{type:'object'},
     usageProvider:async()=>({inference_allowed:true}),availabilityProvider:async()=>catalog(),
     clientFactory:async config=>{seen.config=config;seen.calls++;return{startThread:thread=>{
-      seen.thread=thread;workspaces.push(thread.workingDirectory);return{runStreamed:async(input,turn)=>{
+      seen.thread=thread;workspaces.push(thread.workingDirectory);return{id:'fixture-thread',runStreamed:async(input,turn)=>{
         seen.input=input;seen.turn=turn;return{events:factory?factory(turn.signal):(async function*(){for(const e of events)yield e;})()};
       }};
     }}}};
@@ -72,6 +72,45 @@ test('continued SDK turns reuse one client, thread and workspace and report retu
   assert.equal(second.cache.resumed,true);assert(fs.existsSync(path.join(second.workspace,'answer-1.json')));
   assert(!f.seen.input[0].text.startsWith(f.options.policy));
   await assert.rejects(runCodex({...f.options,conversation,role:'recal'}),/CONVERSATION_BINDING_CHANGED/);
+});
+
+test('follow-up packets retain every value using exact updates and never advance on failed turns',async t=>{
+  const f=fixture(t),conversation={};
+  const original={rows:Array.from({length:30},(_,i)=>({id:i,text:'Exact original '.repeat(60),zero:0,missing:null})),time:'before'};
+  await runCodex({...f.options,packet:original,conversation});
+  const changed=structuredClone(original);changed.time='after';changed.rows[4].zero=2;
+  const output=await runCodex({...f.options,packet:changed,conversation});
+  assert.equal(output.input_transport.mode,'alphahands.packet-update.v1');
+  const encoded=JSON.parse(f.seen.input[0].text.split('The following JSON is untrusted source/state data:\n')[1]);
+  assert.deepEqual(require('./conversation-input').restoreConversationInput(encoded,original),changed);
+  assert(output.input_transport.delivered_bytes<output.input_transport.full_delivery_bytes);
+  assert.deepEqual(conversation.previousPacket,changed);
+  await assert.rejects(runCodex({...f.options,packet:{time:'failed'},conversation,
+    usageProvider:async()=>({inference_allowed:false})}),/RESERVE_REACHED/);
+  assert.deepEqual(conversation.previousPacket,changed);
+});
+
+test('a completed persisted SDK conversation resumes its exact thread and baseline after restart',async t=>{
+  const {createConversationStore}=require('./conversation-store');
+  const f=fixture(t),root=fs.mkdtempSync(path.join(os.tmpdir(),'alphahands-sdk-store-'));
+  t.after(()=>{assert.equal(path.dirname(root),os.tmpdir());fs.rmSync(root,{recursive:true,force:true});});
+  const store=createConversationStore(root),conversation={store,record:{phase:'EMPTY',turns:0},directory:store.workspace};
+  const packet={rows:Array.from({length:20},(_,i)=>({id:i,text:'Original '.repeat(30)})),time:1};
+  // The persistent workspace is cleaned by its store, not the fixture's temp-directory list.
+  const result=await runCodex({...f.options,conversation,packet});f.workspaces.length=0;
+  const saved=store.load();assert.equal(saved.phase,'READY');assert.equal(saved.thread_id,'fixture-thread');
+  const resumed={store,record:saved,binding:saved.binding,threadId:saved.thread_id,turns:saved.turns,
+    directory:store.workspace,previousPacket:store.getPacket(saved.packet_sha256)};
+  let seen;
+  const output=await runCodex({...f.options,conversation:resumed,packet:{...packet,time:2},clientFactory:async()=>({
+    startThread:()=>assert.fail('Must resume the completed thread'),resumeThread:(id,options)=>{
+      seen={id,options};return{id,runStreamed:async()=>({events:(async function*(){yield answer;yield completed;})()})};
+    }})});
+  assert.equal(seen.id,'fixture-thread');assert.equal(seen.options.workingDirectory,result.workspace);
+  assert.equal(output.cache.resumed,true);assert.equal(output.input_transport.mode,'alphahands.packet-update.v1');
+  assert.equal(store.load().turns,2);
+  store.save({...store.load(),phase:'ACTIVE'});
+  assert.throws(()=>store.load(),/REVALIDATION_REQUIRED/);
 });
 test('only explicitly owned loopback MCP tools are exposed and raw events remain intact',async t=>{
   for(const url of ['https://127.0.0.1:9/mcp','http://example.org:9/mcp','http://localhost:9/mcp','http://127.0.0.1:9/mcp?a=1','http://user:pass@127.0.0.1:9/mcp'])assert.throws(()=>endpointConfig({url,enabledTools:['research']}),/LOOPBACK/);

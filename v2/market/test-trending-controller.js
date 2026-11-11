@@ -19,12 +19,13 @@ test('no verifier means explicit unavailable with unchanged canonical exports an
 test('verified change invalidates frozen authority before verification, commits complete audit and survives restart',async t=>{
   const d=directory(t),events=[];
   const c=new TrendingController({stateDir:d,now:()=>NOW,onScopeChange:()=>events.push('invalidate'),verifyChange:async x=>{events.push('verify');
-    assert.equal(x.before_configs[0].filterQuery.max_created,'7');assert.equal(x.after_configs[0].filterQuery.max_created,'6');return receipt(x);}});
+    assert.equal(x.before_configs[0].filterQuery.max_created,'2200');assert.equal(x.before_configs[0].timeType.max,'h');
+    assert.equal(x.after_configs[0].filterQuery.max_created,'6');return receipt(x);}});
   const before=c.read(),result=await c.update(change());assert(result.changed);assert(result.scope_changed);assert.deepEqual(events,['invalidate','verify']);
   assert.equal(result.status,'VERIFIED_AND_COMMITTED');assert.equal(result.version,1);
-  const after=new TrendingController({stateDir:d,now:()=>NOW}).read();assert.equal(after.version,1);assert.equal(after.request.params[0].filter.max_created,'8640m');
+  const after=new TrendingController({stateDir:d,now:()=>NOW}).read();assert.equal(after.version,1);assert.equal(after.request.params[0].filter.max_created,'360m');
   assert.equal(after.request.params[0].interval,'24h');assert.deepEqual(after.configs[1],before.configs[1]);
-  const preserved=clone(after.configs[0]);preserved.filterQuery.max_created='7';assert.deepEqual(preserved,before.configs[0]);
+  const preserved=clone(after.configs[0]);preserved.filterQuery.max_created='2200';assert.deepEqual(preserved,before.configs[0]);
   const state=JSON.parse(fs.readFileSync(path.join(d,'trending-state.json'),'utf8'));assert.equal(state.audit.length,1);
   assert.deepEqual(state.audit[0].before_configs,before.configs);assert.deepEqual(state.audit[0].after_configs,after.configs);
   assert.equal(state.audit[0].before_config_sha256,before.config_sha256);assert.equal(state.audit[0].after_request_sha256,after.request_sha256);

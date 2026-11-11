@@ -14,10 +14,11 @@ function modelContent(result,now=Date.now()){
   const prepared=prepareModelInput(projected);
   return{content:[{type:'text',text:prepared.text},...images],structuredContent:JSON.parse(prepared.text),isError:false};
 }
-async function startResearchMcpServer({tools,port=0,now=()=>Date.now()}={}){
+async function startResearchMcpServer({tools,port=0,endpointPath=null,now=()=>Date.now()}={}){
   if(!tools||typeof tools.callTool!=='function'||!Array.isArray(tools.definitions))throw Error('RESEARCH_MCP_TOOLS_REQUIRED');
   if(!Number.isInteger(port)||port<0||port>65535)throw Error('RESEARCH_MCP_PORT');
-  const endpoint='/mcp/'+crypto.randomBytes(16).toString('hex');let address;
+  if(endpointPath!==null&&!/^\/mcp\/[a-f0-9]{32}$/.test(endpointPath))throw Error('RESEARCH_MCP_PATH');
+  const endpoint=endpointPath??'/mcp/'+crypto.randomBytes(16).toString('hex');let address;
   const response=(res,status,body)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(body===null?'':JSON.stringify(body));};
   const server=http.createServer(async(req,res)=>{
     if(req.socket.remoteAddress!=='127.0.0.1'||req.headers.host!==address||req.url!==endpoint){response(res,403,{error:'FORBIDDEN'});return;}
@@ -45,7 +46,10 @@ async function startResearchMcpServer({tools,port=0,now=()=>Date.now()}={}){
     }catch{if(!res.headersSent)response(res,400,{error:'REQUEST_FAILED'});else res.end();}
   });
   server.requestTimeout=30000;server.headersTimeout=10000;server.timeout=45000;
-  await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,'127.0.0.1',resolve);});
+  await new Promise((resolve,reject)=>{
+    server.once('error',error=>reject(Error(error.code==='EADDRINUSE'?'RESEARCH_MCP_ENDPOINT_IN_USE':'RESEARCH_MCP_LISTEN_FAILED')));
+    server.listen(port,'127.0.0.1',resolve);
+  });
   address='127.0.0.1:'+server.address().port;
   let closed=false;
   return{url:'http://'+address+endpoint,enabledTools:tools.definitions.map(d=>d.name),close:async()=>{

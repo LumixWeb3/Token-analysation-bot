@@ -19,6 +19,7 @@ test('runtime joins live book, account and main/recal scheduling, closes resourc
   let clock=Date.now(),closed=0,calls=0;const abort=new AbortController();
   try{
     const result=await runBot({accountFile,stateDir,seconds:20,now:()=>clock,signal:abort.signal,
+      usageProvider:async()=>({inference_allowed:true}),
       sleep:async()=>{clock+=1000;},createBrowser:()=>({acquirePage:async()=>{throw Error('UNEXPECTED_BROWSER');},close:async()=>{closed++;}}),
       collectMarket:async({onView,signal})=>{const b=book(()=>clock);onView(b.view(),b);await new Promise(resolve=>signal.addEventListener('abort',resolve,{once:true}));},
       research:async options=>{calls++;assert.equal(options.role,'main');assert.equal(options.accountState.cash_usd,30);assert(options.book.view().research_ready);return{status:'COMMITTED'};}});
@@ -28,4 +29,16 @@ test('runtime joins live book, account and main/recal scheduling, closes resourc
     // Only exact fixture files are removed, using one filesystem API end to end.
     for(const name of fs.readdirSync(stateDir))fs.unlinkSync(path.join(stateDir,name));fs.rmdirSync(stateDir);fs.unlinkSync(accountFile);fs.rmdirSync(root);
   }
+});
+
+test('usage preflight blocks source browsers before collection and releases the runner lock',async()=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'v2-quota-unit-')),accountFile=path.join(root,'account.json'),stateDir=path.join(root,'state');
+  const ledger=new PaperAccount({filePath:accountFile});ledger.initialize(30);
+  let sources=0,closed=0;
+  try{
+    await assert.rejects(runBot({accountFile,stateDir,seconds:20,usageProvider:async()=>({inference_allowed:false}),
+      collectMarket:async()=>{sources++;},createBrowser:()=>({close:async()=>{closed++;}})}),/CODEX_USAGE_RESERVE_REACHED/);
+    assert.equal(sources,0);assert.equal(closed,1);assert(!fs.existsSync(path.join(stateDir,'bot.lock')));
+    assert.equal(ledger.read().fills.length,0);
+  }finally{assert.equal(path.dirname(root),os.tmpdir());fs.rmSync(root,{recursive:true,force:true});}
 });

@@ -8,9 +8,11 @@ const {createResearchTools}=require('./research-tools');
 const {createOwnedBrowserController}=require('./research-browser');
 const {startResearchMcpServer}=require('./research-mcp');
 const {createResearchBrowser}=require('./research-browser-owner');
+const {createConversationStore,detailDefinition,readDetail}=require('./conversation-store');
+const {hash}=require('../market/network-feed');
 
-function createResearchCache(){
-  const cache={conversation:{},endpoint:null,tools:null,role:null};
+function createResearchCache({directory=null}={}){
+  const cache={conversation:{},endpoint:null,tools:null,role:null,storeDirectory:directory,packets:new Map()};
   cache.close=async()=>{if(cache.endpoint)await cache.endpoint.close();cache.endpoint=null;cache.tools=null;};
   return cache;
 }
@@ -34,14 +36,38 @@ async function runResearchSession({book,stateDir,role='main',wakeReason='OWNER_R
   try{return await runResearch({book,stateDir,maxRounds,initialSources,tokenEvidence,resumeRunId,broker:routedBroker,accountState,
     runtime:{role,wake_reason:wakeReason,shared_strategy:true,execution:accountState?'PAPER_ONLY':'UNAVAILABLE',historical_research:historicalResearch},
     execute:async input=>{
+      if(cache.storeDirectory&&!cache.conversation.store){
+        const store=createConversationStore(cache.storeDirectory),record=store.load();
+        Object.assign(cache.conversation,{store,record,turns:record?.turns??0,directory:store.workspace,
+          binding:record?.binding,threadId:record?.thread_id,previousPacket:record?.packet_sha256?store.getPacket(record.packet_sha256):null});
+      }
+      const packetSha=hash(input.packet);
+      if(cache.conversation.store)cache.conversation.store.putPacket(input.packet);
+      else cache.packets.set(packetSha,JSON.parse(JSON.stringify(input.packet)));
       const tools=createResearchTools({broker,feedController,browserController,now,allowedCoinIds:input.packet.controls.allowed_research_coin_ids});
       cache.tools=tools;
-      if(!cache.endpoint)cache.endpoint=await startServer({tools:{definitions:tools.definitions,
-        callTool:(...args)=>{if(!cache.tools)throw Error('RESEARCH_NO_ACTIVE_TURN');return cache.tools.callTool(...args);},
-        recordResult:(...args)=>cache.tools.recordResult(...args)}});
+      if(!cache.endpoint){
+        const savedEndpoint=cache.conversation.record?.endpoint;
+        const endpointOptions=savedEndpoint?{port:Number(new URL(savedEndpoint).port),endpointPath:new URL(savedEndpoint).pathname}:{};
+        cache.endpoint=await startServer({...endpointOptions,tools:{definitions:[...tools.definitions,detailDefinition],
+          callTool:(name,args)=>{
+            if(!cache.tools)throw Error('RESEARCH_NO_ACTIVE_TURN');
+            if(name==='research_input_read')return readDetail(sha=>{
+              if(cache.conversation.store)return cache.conversation.store.getPacket(sha);
+              if(!cache.packets.has(sha))throw Error('RESEARCH_INPUT_DETAIL_NOT_FOUND');
+              return cache.packets.get(sha);
+            },args);
+            return cache.tools.callTool(name,args);
+          },recordResult:(...args)=>cache.tools.recordResult(...args)}});
+        if(cache.conversation.store){
+          cache.conversation.record={...cache.conversation.record,endpoint:cache.endpoint.url,phase:cache.conversation.record?.phase??'EMPTY',turns:cache.conversation.turns};
+          cache.conversation.store.save(cache.conversation.record);
+        }
+      }
       const endpoint=cache.endpoint;
       try{
-        const output=await execute({...transportOptions,...input,role,conversation:cache.conversation,toolEndpoint:{url:endpoint.url,enabledTools:endpoint.enabledTools}});
+        const output=await execute({...transportOptions,...input,role,conversation:cache.conversation,
+          toolEndpoint:{url:endpoint.url,enabledTools:endpoint.enabledTools,definitions_sha256:hash([...tools.definitions,detailDefinition])}});
         const receipts=tools.sources({drain:true});
         return{...output,tool_results:receipts.request_results,scope_changed:receipts.scope_changed};
       }finally{cache.tools=null;}

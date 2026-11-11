@@ -62,3 +62,26 @@ test('role cache keeps one tool endpoint across reviews and rejects idle or cros
   await assert.rejects(runResearchSession({...options,role:'recal'}),/CACHE_ROLE_MISMATCH/);
   await cache.close();assert.equal(closed,1);
 });
+
+test('persistent role cache restores the same owned MCP address and exact recovery tool',async t=>{
+  const {hash}=require('../market/network-feed');
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'alphahands-persistent-session-'));
+  t.after(()=>{assert.equal(path.dirname(root),os.tmpdir());fs.rmSync(root,{recursive:true,force:true});});
+  const stateDir=path.join(root,'research'),cacheDir=path.join(root,'sdk-main');
+  let url,expected;
+  async function execute(input){
+    expected=hash(input.packet);
+    const endpoint=input.toolEndpoint;
+    if(url)assert.equal(endpoint.url,url);url=endpoint.url;
+    assert(endpoint.enabledTools.includes('research_input_read'));
+    const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',
+      params:{name:'research_input_read',arguments:{packet_sha256:expected,path:['controls','strategy_version']}}})});
+    const result=(await response.json()).result;assert.equal(result.structuredContent.status,'EXACT');
+    assert.equal(result.structuredContent.value,input.packet.controls.strategy_version);
+    return{text:JSON.stringify(reply())};
+  }
+  let cache=createResearchCache({directory:cacheDir});
+  try{await runResearchSession({book:book(),stateDir,cacheSession:cache,browserOptions:false,execute});}finally{await cache.close();}
+  cache=createResearchCache({directory:cacheDir});
+  try{await runResearchSession({book:book(),stateDir,cacheSession:cache,browserOptions:false,execute});}finally{await cache.close();}
+});
