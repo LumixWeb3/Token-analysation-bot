@@ -5,7 +5,7 @@ const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypt
 const {setTimeout:delay}=require('node:timers/promises');
 const {collect,atomic}=require('./market/collector');
 const {hash}=require('./market/network-feed');
-const {runResearchSession}=require('./agent/research-session');
+const {runResearchSession,createResearchCache}=require('./agent/research-session');
 const {readState,watchWake}=require('./agent/research-host');
 const checkpoint=require('./agent/research-checkpoint');
 const {createResearchBrowser}=require('./agent/research-browser-owner');
@@ -34,7 +34,9 @@ async function runBot({accountFile,stateDir=path.resolve(__dirname,'../v2-runtim
     browser??=createBrowser({headless});return browser.acquirePage(options);
   };
   const broker=createResearchBroker({acquirePage,xApi:researchSource,now});
+  const caches={main:createResearchCache(),recal:createResearchCache()};
   let liveBook=null,sourceEnded=false,sourceFailure=null,cycle=null,pendingRun=null,lastRun=0,lastMain=0,lastCohort=null;
+  let needsReorientation=false,historicalResearch=null;
   const sessionDirectory=path.join(stateDir,'market-'+crypto.randomUUID());
   let source,stopReason=null,lastStatus={status:'STARTING'},statusSince=new Date(now()).toISOString();
   function publishHealth(){
@@ -49,7 +51,10 @@ async function runBot({accountFile,stateDir=path.resolve(__dirname,'../v2-runtim
   },15000);
   healthTimer.unref();
   try{
-    if(checkpoint.exists(stateDir))throw Error('BOT_PENDING_RESEARCH_REVALIDATION_REQUIRED');
+    if(checkpoint.exists(stateDir)){
+      if(checkpoint.load(stateDir,{hydrate:false}).phase!=='PAUSED')throw Error('BOT_PENDING_RESEARCH_REVALIDATION_REQUIRED');
+      needsReorientation=true;
+    }
     source=Promise.resolve().then(()=>collectMarket({seconds,headless,outputDir:sessionDirectory,signal:abort.signal,
       onView:(_,book,sourceControls)=>{liveBook=book;sourcePageProvider=sourceControls?.acquirePage??null;}})).catch(error=>{sourceFailure=error;}).finally(()=>{sourceEnded=true;});
     const started=now();status({status:'STARTING'});
@@ -61,6 +66,11 @@ async function runBot({accountFile,stateDir=path.resolve(__dirname,'../v2-runtim
         await sleep(1000,undefined,{signal:abort.signal}).catch(()=>{});continue;
       }
       const state=readState(stateDir);
+      if(needsReorientation&&view.research_ready){
+        historicalResearch=checkpoint.preservePausedResearch(stateDir,state);
+        pendingRun=null;cycle=null;lastMain=0;lastCohort=null;needsReorientation=false;
+        status({status:'REORIENTING_FROM_PRESERVED_RESEARCH'});
+      }
       if(state.paper_decision){const outcome=await settlePaperDecision({state,stateDir,execution,broker,marketReady:()=>liveBook.view().research_ready,now});
         if(outcome?.status==='FILLED')status({status:'PAPER_ACTION_CONFIRMED',fill_id:outcome.fill_id});}
       const cohort=hash(view.groups.map(g=>({feed:g.feed,chain:g.chain,ids:g.rows.map(r=>r.coin_id).sort()})));
@@ -74,7 +84,7 @@ async function runBot({accountFile,stateDir=path.resolve(__dirname,'../v2-runtim
         status({status:'RESEARCHING',role,position_quote_coverage:positionCoverage});
         let result;
         try{result=await research({book:cycle,stateDir,role,wakeReason:pendingRun?'RESEARCH_CONTINUATION':mainDue?'MARKET_OBSERVATION':'WATCH_OR_POSITION_REVIEW',
-          acquirePage,accountState:execution.context(),resumeRunId:pendingRun,
+          acquirePage,accountState:execution.context(),resumeRunId:pendingRun,cacheSession:caches[role],historicalResearch,
           feedController:{read:async()=>liveBook.view()},signal:abort.signal,maxRounds:3,
           usageProvider:options=>{
             const file=path.join(stateDir,'usage-authorization.json');
@@ -86,11 +96,16 @@ async function runBot({accountFile,stateDir=path.resolve(__dirname,'../v2-runtim
             }
             return readUsage({...options,authorization});
           }});
+        }catch(error){
+          if(error.message==='RESEARCH_REVALIDATION_REQUIRED'&&pendingRun&&checkpoint.load(stateDir,{hydrate:false}).phase==='PAUSED'){
+            needsReorientation=true;lastRun=now();status({status:'REVALIDATING_PAUSED_RESEARCH'});continue;
+          }
+          throw error;
         }finally{if(browser){await browser.close();browser=null;}}
         lastRun=now();if(role==='main'){lastMain=lastRun;lastCohort=cohort;}
         pendingRun=result.status==='RESEARCH_IN_PROGRESS'?result.run_id:null;
         status({status:result.status,role,run_id:result.run_id});
-        if(pendingRun&&!cycle.view().research_ready)throw Error('BOT_PENDING_RESEARCH_REVALIDATION_REQUIRED');
+        if(pendingRun&&!cycle.view().research_ready)needsReorientation=true;
         const accepted=readState(stateDir);
         if(accepted.paper_decision)await settlePaperDecision({state:accepted,stateDir,execution,broker,marketReady:()=>liveBook.view().research_ready,now});
       }
@@ -109,7 +124,10 @@ async function runBot({accountFile,stateDir=path.resolve(__dirname,'../v2-runtim
   }finally{
     abort.abort();signal?.removeEventListener('abort',cancel);
     clearInterval(healthTimer);
-    try{if(source)await source;}finally{try{if(browser)await browser.close();}finally{
+    try{if(source)await source;}finally{try{
+      const closed=await Promise.allSettled([caches.main.close(),caches.recal.close(),browser?.close()]);
+      const failure=closed.find(result=>result.status==='rejected');if(failure)throw failure.reason;
+    }finally{
       try{memory.sample();publishHealth();}finally{fs.closeSync(lock);fs.unlinkSync(lockFile);}
     }}
   }

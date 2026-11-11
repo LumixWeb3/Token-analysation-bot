@@ -9,7 +9,7 @@ const {coinIdentity,collectTokenFromPage,validatePng}=require('./token-evidence'
 const clone=x=>JSON.parse(JSON.stringify(x)),NOW=Date.parse('2026-11-07T13:00:00Z');
 function directory(t){const d=fs.mkdtempSync(path.join(os.tmpdir(),'alphahands-checkpoint-'));t.after(()=>{
   assert.equal(path.dirname(fs.realpathSync(d)),fs.realpathSync(os.tmpdir()));
-  for(const f of fs.readdirSync(d)){const target=path.join(d,f);if(f==='research-cache'){assert(fs.lstatSync(target).isDirectory());for(const p of fs.readdirSync(target)){assert(/^[a-f0-9]{64}\.png$/.test(p));fs.unlinkSync(path.join(target,p));}fs.rmdirSync(target);}else{assert(/^(turns\.jsonl|research\.jsonl|research\.lock|STRATEGY\.md|research-pending\.json)$/.test(f));fs.unlinkSync(target);}}fs.rmdirSync(d);
+  for(const f of fs.readdirSync(d)){const target=path.join(d,f);if(f==='research-cache'||f==='research-archive'){assert(fs.lstatSync(target).isDirectory());for(const p of fs.readdirSync(target)){assert(f==='research-cache'?/^[a-f0-9]{64}\.png$/.test(p):/^[a-f0-9-]+-round-\d+\.json$/.test(p));fs.unlinkSync(path.join(target,p));}fs.rmdirSync(target);}else{assert(/^(turns\.jsonl|research\.jsonl|research\.lock|STRATEGY\.md|research-pending\.json)$/.test(f));fs.unlinkSync(target);}}fs.rmdirSync(d);
 });return d;}
 function book(now=NOW){const b=new FeedBook({now:()=>now});for(const f of ['migrated','trending']){assert(b.snapshot(f,fixture[f],SCOPE[f]).accepted);b.connection(f,true);}return b;}
 function response(){return{notes:'Original 🌿 notes: evidence still uncertain.',reviewed_coin_ids:[],cited_source_ids:[],strategy:null,watches:[],research_requests:[],next_review_at:null};}
@@ -79,4 +79,40 @@ test('committed journal wins over pending cleanup failure and repairs strategy p
   let result;try{checkpoint.clear=()=>{throw Error('SYNTHETIC_CLEANUP_FAILURE');};result=await runResearch({book:b,stateDir:d,resumeRunId:paused.run_id,broker:{capabilities:{},collect:async request=>({request,status:'OBSERVED',sources:[],token_evidence:[]})},execute:async()=>({text:JSON.stringify(response())})});}finally{checkpoint.clear=clear;}
   assert.equal(result.status,'COMMITTED');assert.equal(result.pending_cleanup,'PENDING_CLEANUP_FAILED');fs.unlinkSync(path.join(d,'STRATEGY.md'));
   const retry=await runResearch({book:b,stateDir:d,resumeRunId:paused.run_id,execute:async()=>{throw Error('NO_MODEL_RETRY');}});assert.equal(retry.status,'ALREADY_COMMITTED');assert.equal(readState(d).version,1);assert.equal(fs.readFileSync(path.join(d,'STRATEGY.md'),'utf8'),readState(d).strategy);assert(!checkpoint.exists(d));
+});
+
+test('reorientation archives exact paused evidence and never adopts old coverage or actions',async t=>{
+  const d=directory(t),b=book(),s=source();
+  const paused=await pause(d,b,{initialSources:[s]});
+  const original=fs.readFileSync(path.join(d,'research-pending.json'));
+  const accepted=readState(d);
+  const historical=checkpoint.preservePausedResearch(d,accepted);
+  assert.equal(historical.run_id,paused.run_id);
+  assert.equal(historical.sources[0].qualified,false);
+  assert.equal(historical.notes[0].notes,response().notes);
+  assert.equal(historical.pending_questions[0].input,'Original question');
+  assert(fs.readFileSync(path.join(d,historical.archive)).equals(original));
+  assert(!checkpoint.exists(d));
+  assert.deepEqual(readState(d),accepted);
+  assert(!Object.hasOwn(historical,'reviewed_coin_ids'));
+  assert(!Object.hasOwn(historical,'strategy'));
+});
+
+test('reorientation refuses active, altered-state, damaged-image and corrupt checkpoints without moving evidence',async t=>{
+  for(const kind of ['active','state','image','corrupt']){
+    await t.test(kind,async t=>{
+      const d=directory(t),b=book();
+      const tokens=kind==='image'?[await token(b.view().groups[0].rows[0].coin_id)]:[];
+      await pause(d,b,{tokenEvidence:tokens});
+      if(kind==='active')rewrite(d,body=>{body.phase='ACTIVE';});
+      if(kind==='image')fs.unlinkSync(path.join(d,'research-cache',tokens[0].chart.sha256+'.png'));
+      const file=path.join(d,'research-pending.json');
+      if(kind==='corrupt')fs.appendFileSync(file,'invalid');
+      const original=fs.readFileSync(file),accepted=readState(d);
+      if(kind==='state')accepted.version++;
+      assert.throws(()=>checkpoint.preservePausedResearch(d,accepted));
+      assert(fs.readFileSync(file).equals(original));
+      assert(!fs.existsSync(path.join(d,'research-archive')));
+    });
+  }
 });

@@ -60,6 +60,19 @@ test('SDK accepts a large repeated packet only after exact reconstruction within
   assert.deepEqual(require('./lossless-input').restoreModelInput(envelope),packet);
   assert.equal(f.seen.calls,1);
 });
+
+test('continued SDK turns reuse one client, thread and workspace and report returned cache tokens',async t=>{
+  let turns=0;
+  const f=fixture(t,{factory:()=>{const turn=turns++;return(async function*(){yield answer;yield{type:'turn.completed',usage:{input_tokens:100,cached_input_tokens:turn?80:0,output_tokens:2}};})();}});
+  const conversation={};
+  const first=await runCodex({...f.options,conversation});
+  const second=await runCodex({...f.options,conversation,packet:{...f.options.packet,changed:true}});
+  assert.equal(f.seen.calls,1);assert.equal(f.workspaces.length,1);assert.equal(first.workspace,second.workspace);
+  assert.equal(first.cache.status,'MISS');assert.equal(second.cache.status,'HIT');assert.equal(second.cache.cached_input_tokens,80);
+  assert.equal(second.cache.resumed,true);assert(fs.existsSync(path.join(second.workspace,'answer-1.json')));
+  assert(!f.seen.input[0].text.startsWith(f.options.policy));
+  await assert.rejects(runCodex({...f.options,conversation,role:'recal'}),/CONVERSATION_BINDING_CHANGED/);
+});
 test('only explicitly owned loopback MCP tools are exposed and raw events remain intact',async t=>{
   for(const url of ['https://127.0.0.1:9/mcp','http://example.org:9/mcp','http://localhost:9/mcp','http://127.0.0.1:9/mcp?a=1','http://user:pass@127.0.0.1:9/mcp'])assert.throws(()=>endpointConfig({url,enabledTools:['research']}),/LOOPBACK/);
   const toolEndpoint={url:'http://127.0.0.1:20000/session/mcp',enabledTools:['research_source']};

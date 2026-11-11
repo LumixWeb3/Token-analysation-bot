@@ -10,6 +10,16 @@ An ongoing agentic research system for narrative-driven tokens. V2 gathers sourc
 - Web research, dedicated-browser tools and recorded discovery-filter changes.
 - Research checkpoints, shared strategy context and offline regression tests.
 
+Main and review agents keep separate SDK conversations and stable research-tool
+connections across rounds. Each completed turn records actual cached-input token
+counts. Cache reuse has been measured on both subscription models. Provider cache
+retention varies between calls.
+
+An ordinary paused review preserves its complete checkpoint before beginning a
+fresh market observation cycle. Earlier notes remain historical. Interrupted
+active reviews require reconciliation before they can resume. Source, strategy,
+quote and account checks continue to govern every paper action.
+
 The `v2/agent` directory contains instructions, transport, research and evidence handling. The `v2/market` directory contains collectors, filters and public schema fixtures. Shared root modules provide chain definitions, Chrome discovery, saved-profile locking, the token-page parser, paper accounting and the optional read-only X client used by V2.
 
 ## Local setup

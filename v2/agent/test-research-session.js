@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
-const {runResearchSession}=require('./research-session');
+const {runResearchSession,createResearchCache}=require('./research-session');
 const {FeedBook,SCOPE}=require('../market/network-feed');
 const fixture=require('../market/fixtures/gmgn-network-2026-10-27.json');
 const {buildWebSource}=require('./web-evidence');
@@ -33,4 +33,15 @@ test('model failure closes ephemeral tools and never commits a fabricated comple
   const failed=JSON.parse(fs.readFileSync(path.join(stateDir,'turns.jsonl'),'utf8').trim());
   assert.equal(failed.status,'MODEL_EXECUTION_FAILED');assert.equal(failed.reason,'FIXTURE_MODEL_FAILED');
   assert.equal(failed.input_bytes,Buffer.byteLength(JSON.stringify(failed.input_packet)));
+});
+
+test('role cache keeps one tool endpoint across reviews and rejects idle or cross-role access',async t=>{
+  const stateDir=directory(t),cache=createResearchCache();let starts=0,closed=0,proxy,conversation;
+  const options={book:book(),stateDir,cacheSession:cache,browserOptions:false,
+    startServer:async({tools})=>{starts++;proxy=tools;return{url:'http://127.0.0.1:1/mcp/cache',enabledTools:['discovery_read'],close:async()=>{closed++;}};},
+    execute:async input=>{if(conversation)assert.equal(input.conversation,conversation);conversation=input.conversation;return{text:JSON.stringify(reply())};}};
+  await runResearchSession(options);await runResearchSession(options);
+  assert.equal(starts,1);assert.equal(closed,0);assert.throws(()=>proxy.callTool('discovery_read',{}),/NO_ACTIVE_TURN/);
+  await assert.rejects(runResearchSession({...options,role:'recal'}),/CACHE_ROLE_MISMATCH/);
+  await cache.close();assert.equal(closed,1);
 });
