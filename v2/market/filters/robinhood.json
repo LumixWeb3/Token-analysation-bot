@@ -3,7 +3,7 @@
   "network": "robinhood",
   "tab": "trending",
   "filterQuery": {
-    "max_created": "7",
+    "max_created": "2200",
     "min_marketcap": "100000",
     "min_gas_fee": "0.65",
     "not_honeypot": "0",
@@ -27,5 +27,5 @@
     "pool_uniswap_v4": "1", "pool_sushiswap": "1"
   },
   "keywordSearch": [],
-  "timeType": { "min": "d", "max": "d" }
+  "timeType": { "min": "d", "max": "h" }
 }

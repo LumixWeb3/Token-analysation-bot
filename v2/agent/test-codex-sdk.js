@@ -82,6 +82,29 @@ test('only explicitly owned loopback MCP tools are exposed and raw events remain
   assert.deepEqual(out.items,[search.item,tool.item,answer.item]);assert.deepEqual(out.sdk_events,[search,tool,answer,completed]);
   assert.match(f.seen.config.configOverrides.at(-1),/mcp_servers.alphahands=/);assert.deepEqual(f.seen.config.config.mcp_servers.alphahands.enabled_tools,['research_source']);
 });
+
+test('a usage-blocked preflight preserves the completed conversation for a later turn',async t=>{
+  const f=fixture(t),conversation={};
+  await runCodex({...f.options,conversation});
+  await assert.rejects(runCodex({...f.options,conversation,usageProvider:async()=>({inference_allowed:false})}),/RESERVE_REACHED/);
+  assert.equal(conversation.faulted,undefined);
+  const resumed=await runCodex({...f.options,conversation});
+  assert.equal(resumed.cache.resumed,true);
+  assert.equal(f.seen.calls,1);
+});
+
+test('explicit window authorization supports a fifteen percent reserve and expires with its window',()=>{
+  const reset=Math.floor(Date.now()/1000)+3600;
+  const usage={ordinaryUsageAllowed:true,rateLimits:{primary:{windowDurationMins:300,usedPercent:84,resetsAt:reset}}};
+  const authorization={schema:'alphahands.usage-authorization.v1',owner_approved:true,window_resets_at:reset,start_before_percent:85};
+  assert.equal(quotaFromResult(usage,{authorization}).inference_allowed,true);
+  assert.equal(quotaFromResult(usage,{authorization}).reserve_percent,15);
+  usage.rateLimits.primary.usedPercent=85;
+  assert.equal(quotaFromResult(usage,{authorization}).inference_allowed,false);
+  usage.rateLimits.primary.usedPercent=70;
+  authorization.window_resets_at--;
+  assert.equal(quotaFromResult(usage,{authorization}).inference_allowed,false);
+});
 test('actual exact-hash PNG bytes reach SDK as local images, with identity manifest',async t=>{
   const f=fixture(t),bytes=png(),p=validatePng(bytes.toString('base64')),coin='solana:fixture';
   f.options.packet.token_research=[{coin_id:coin,chart:{ok:true,sha256:p.sha256,width:p.width,height:p.height}}];

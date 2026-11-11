@@ -16,13 +16,14 @@ function compileImport(config,{platformScope}={}){
   if(!config||!['sol','robinhood'].includes(config.network)||config.tab!=='trending')throw Error('WRONG_FILTER_SCOPE');
   if(Object.keys(config).some(k=>!['id','network','tab','filterQuery','keywordSearch','timeType'].includes(k)))throw Error('UNKNOWN_IMPORT_FIELDS');
   if(!Array.isArray(config.keywordSearch)||config.keywordSearch.length)throw Error('KEYWORD_SCOPE_NOT_SUPPORTED');
-  if(config.timeType?.min!=='d'||config.timeType?.max!=='d')throw Error('FILTER_AGE_UNITS');
+  if(config.timeType?.min!=='d'||!['d','h'].includes(config.timeType?.max))throw Error('FILTER_AGE_UNITS');
   const q=config.filterQuery;if(!q||typeof q!=='object'||Array.isArray(q))throw Error('FILTER_QUERY_MISSING');
-  const days=positive(q.max_created,'max_created'),fee=positive(q.min_gas_fee,'min_gas_fee');
-  if(!Number.isFinite(days*1440)||days*1440>Number.MAX_SAFE_INTEGER)throw Error('INVALID_FILTER:max_created');
+  const age=positive(q.max_created,'max_created'),fee=positive(q.min_gas_fee,'min_gas_fee');
+  const ageMinutes=age*(config.timeType.max==='h'?60:1440);
+  if(!Number.isFinite(ageMinutes)||ageMinutes>Number.MAX_SAFE_INTEGER)throw Error('INVALID_FILTER:max_created');
   // GMGN's observed all-selected builder emits [] after expanding its current
   // platform registry. A literal export-key list can omit new/aliased platforms.
-  const filter={filters:[],max_created:String(days*1440)+'m',min_gas_fee:fee,limit:500,launchpad_platform:[]};
+  const filter={filters:[],max_created:String(ageMinutes)+'m',min_gas_fee:fee,limit:500,launchpad_platform:[]};
   // Trending displays MC in K, but its exported filterQuery and request both
   // store USD. The public MCFilterItem multiplies the UI input before export.
   if(q.min_marketcap!==undefined){

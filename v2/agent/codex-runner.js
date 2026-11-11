@@ -13,10 +13,11 @@ function quotaFromResult(result,{authorization=null}={}){
   const windows=[bucket?.primary,bucket?.secondary].filter(Boolean),primary=windows.find(w=>w.windowDurationMins===300);
   if(!primary||typeof primary.usedPercent!=='number'||!Number.isFinite(primary.usedPercent)||primary.usedPercent<0||primary.usedPercent>100)throw Error('FIVE_HOUR_USAGE_UNAVAILABLE');
   const waived=authorization?.schema==='alphahands.usage-authorization.v1'&&authorization.owner_approved===true&&
-    authorization.window_resets_at===primary.resetsAt&&authorization.start_before_percent===95&&Date.now()<primary.resetsAt*1000;
+    authorization.window_resets_at===primary.resetsAt&&[85,95].includes(authorization.start_before_percent)&&Date.now()<primary.resetsAt*1000;
+  const cutoff=waived?authorization.start_before_percent:65;
   return{observed_at:new Date().toISOString(),used_percent:primary.usedPercent,window_minutes:300,resets_at:primary.resetsAt,
-    inference_allowed:primary.usedPercent<(waived?95:65)&&result?.ordinaryUsageAllowed===true&&!windows.some(w=>w.usedPercent>=100)&&!bucket.rateLimitReachedType&&bucket.spendControlReached!==true,
-    reserve_percent:waived?5:30,start_buffer_percent:waived?0:5,owner_window_waiver:waived};
+    inference_allowed:primary.usedPercent<cutoff&&result?.ordinaryUsageAllowed===true&&!windows.some(w=>w.usedPercent>=100)&&!bucket.rateLimitReachedType&&bucket.spendControlReached!==true,
+    reserve_percent:waived?100-cutoff:30,start_buffer_percent:waived?0:5,owner_window_waiver:waived};
 }
 async function readUsage(options={}){return quotaFromResult(await controlRead(options),{authorization:options.authorization});}
 function validateImageInputs(packet,images=[]){
@@ -51,7 +52,7 @@ function abortable(work,signal){
 async function runCodex({policy,packet,schema,images=[],timeoutMs=180000,usageProvider=readUsage,
   availabilityProvider=readModelAvailability,clientFactory=createSdkClient,role='main',toolEndpoint,home=isolatedHome(),signal,conversation=null}={}){
   if(!Number.isInteger(timeoutMs)||timeoutMs<=0||timeoutMs>3600000)throw Error('RESEARCH_MODEL_TIMEOUT_INVALID');
-  const controller=new AbortController();let timedOut=false;
+  const controller=new AbortController();let timedOut=false,turnStarted=false;
   const cancel=()=>controller.abort();signal?.addEventListener('abort',cancel,{once:true});if(signal?.aborted)cancel();
   const timer=setTimeout(()=>{timedOut=true;controller.abort();},timeoutMs);
   try{return await abortable(async()=>{
@@ -88,6 +89,7 @@ async function runCodex({policy,packet,schema,images=[],timeoutMs=180000,usagePr
   const thread=conversation?.thread??client.startThread({model:selection.model,modelReasoningEffort:selection.effort,
     workingDirectory:directory,skipGitRepoCheck:true,sandboxMode:'read-only',approvalPolicy:'never',webSearchMode:'live',networkAccessEnabled:false,threadSource:'alphahands_v2_research'});
   if(conversation)Object.assign(conversation,{client,thread,directory,binding});
+  turnStarted=true;
   const {events}=await thread.runStreamed(input,{outputSchema:schema,signal:controller.signal});
   const audit=[],items=[];let text='',total=0,completed=false,modelUsage=null;
   for await(const event of events){
@@ -117,7 +119,7 @@ async function runCodex({policy,packet,schema,images=[],timeoutMs=180000,usagePr
     sdk_events:audit,items,native_search:{mode:'live',items:items.filter(i=>i.type==='web_search'),qualification:'UNVERIFIED_NATIVE_SEARCH_EVENTS'}};
   },controller.signal);}catch(error){
     controller.abort();
-    if(conversation?.thread)conversation.faulted=true;
+    if(turnStarted&&conversation?.thread)conversation.faulted=true;
     // SDK errors can contain raw stderr or source payloads. Return only our stable codes.
     if(timedOut)throw Error('RESEARCH_MODEL_TIMEOUT');
     if(signal?.aborted)throw Error('RESEARCH_MODEL_ABORTED');

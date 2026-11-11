@@ -11,7 +11,7 @@ test('four declared cohorts preserve exact identities, native units, receipt ver
 test('explicit Trending request rejects hidden criteria, wrong period, fee or age',()=>{for(const change of [r=>r.params[0].filter.filters=['frozen'],r=>r.params[0].interval='1h',r=>r.params[1].filter.min_gas_fee=0,r=>r.params[0].filter.max_created='500m']){const r=clone(SCOPE.trending);change(r);const b=new FeedBook({now:()=>START});assert(!b.snapshot('trending',fixture.trending,r).accepted);}});
 test('both feeds are discovery scopes and Trending age remains distinct from its ranking window',()=>{
   const {b}=setup();for(const g of b.view().groups){assert.equal(g.purpose,'DISCOVERY_AND_RESEARCH');
-    if(g.feed==='trending'){assert.equal(g.ranking_window,'24h');assert.equal(g.age_filter.max_age_days,7);assert.equal(g.age_filter.max_created,'10080m');}
+    if(g.feed==='trending'){assert.equal(g.ranking_window,'24h');assert.equal(g.age_filter.max_age_days,2200/24);assert.equal(g.age_filter.max_created,'132000m');}
     else{assert.equal(g.ranking_window,null);assert.equal(g.age_filter,null);}}
 });
 test('nonempty metadata is not fabricated; zero and missing numeric fields remain distinct',()=>{const raw=clone(fixture.migrated.data[0].completed.tokens[0]);delete raw.nm;delete raw.s;raw.mc=0;delete raw.lq;const r=normalizeToken(raw,'sol','migrated',new Date(START).toISOString(),{});assert.equal(r.name,null);assert.equal(r.symbol,null);assert.equal(r.metrics.market_cap_usd.value,0);assert.equal(r.metrics.liquidity_usd.value,null);assert(r.missing.includes('name'));for(const value of [true,'0',NaN,-1]){raw.mc=value;assert.throws(()=>normalizeToken(raw,'sol','migrated',new Date(START).toISOString(),{}));}});
