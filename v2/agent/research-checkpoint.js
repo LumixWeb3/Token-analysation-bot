@@ -74,7 +74,7 @@ function preservePausedResearch(directory,accepted){
   if(fs.existsSync(target))throw Error('RESEARCH_ARCHIVE_CONFLICT');
   const historical={status:'HISTORICAL_REVALIDATION_REQUIRED',run_id:body.run_id,recorded_at:body.recorded_at,
     archive:'research-archive/'+file,shared_image_cache:CACHE,
-    notes:body.progress.map(p=>({recorded_at:p.recorded_at,notes:p.notes})),pending_questions:body.pending_requests,
+    notes:body.progress.map(p=>({recorded_at:p.recorded_at,notes:p.notes,review:p.response??null})),pending_questions:body.pending_requests,
     sources:body.sources.map(s=>({id:s.id,request:s.request,collected_at:s.collected_at,qualified:false})),
     coverage_note:'Previous partial research preserved. Every coin in the current observation cycle requires fresh consideration. Historical sources confer no current source or entry qualification.'};
   fs.renameSync(path.join(root,FILE),target);

@@ -43,3 +43,13 @@ test('uniform source rows share field names while varied rows and literal table-
   assert.equal(encoded.schema,'alphahands.lossless-json.v1');assert(result.text.includes('$table'));
   assert.deepEqual(restoreModelInput(encoded),packet);
 });
+
+test('shared parent arrays still use column tables for their distinct source rows',()=>{
+  const rows=Array.from({length:100},(_,index)=>({exact_wallet_address:'wallet-'+index,
+    current_market_value_usd:index,remaining_token_quantity:index+0.5,missing_value:null,explicit_zero:0}));
+  const packet={original:rows,second_capture:structuredClone(rows),top20:rows.slice(0,20)};
+  const result=prepareModelInput(packet);
+  assert(result.text.includes('$table'));
+  assert(result.manifest.delivered_bytes<result.manifest.original_bytes/3);
+  assert.deepEqual(restoreModelInput(JSON.parse(result.text)),packet);
+});

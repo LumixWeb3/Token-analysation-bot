@@ -90,6 +90,7 @@ test('reorientation archives exact paused evidence and never adopts old coverage
   assert.equal(historical.run_id,paused.run_id);
   assert.equal(historical.sources[0].qualified,false);
   assert.equal(historical.notes[0].notes,response().notes);
+  assert.deepEqual(historical.notes[0].review,JSON.parse(original).body.progress[0].response);
   assert.equal(historical.pending_questions[0].input,'Original question');
   assert(fs.readFileSync(path.join(d,historical.archive)).equals(original));
   assert(!checkpoint.exists(d));

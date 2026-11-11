@@ -185,6 +185,12 @@ remain preserved. `research_input_read` retrieves exact historical packet fields
 when earlier context is unavailable. Its ranges retain explicit counts and source
 times. A cache hit is reported only from returned SDK cached-input counts.
 
-Offline replay measured 17 percent fewer payload bytes over five saved inputs.
+Offline replay measured 23 percent fewer payload bytes over five saved inputs,
+including column-table packing within repeated parent arrays.
 This does not establish a corresponding subscription-usage reduction. First-time
 evidence, growing conversation history and native compaction still consume input.
+
+Intermediate reviews explicitly report pending proposal status. Their complete
+responses remain in progress/checkpoints. The agent can finish a bounded working
+strategy by returning its final proposals with no immediate research requests.
+Decision-critical unresolved research and paper-entry gates remain enforced.

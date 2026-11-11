@@ -87,6 +87,10 @@ function packetFor(book,state,sources=[],tokenEvidence=[],{capabilities={},reque
   if(positionOnly){compact.suppressed_discovery_groups=compact.groups.map(g=>({feed:g.feed,chain:g.chain,rows:g.rows.length}));compact.groups=[];}
   const packet={schema:'alphahands.research.v2',controls:{mode:'READ_ONLY_RESEARCH',trading_enabled:false,account_state:null,
     strategy_version:state.version,capabilities:{market:'qualified_network_cohorts',x:'host_requests',gmgn:'UNAVAILABLE',browser:'UNAVAILABLE',...capabilities,execution:accountState?'PAPER_ONLY':'UNAVAILABLE'},
+    review_protocol:{intermediate:'A response with nonempty research_requests continues research. Its strategy, watches and next-review proposals are not committed.',
+      completion:'When the available evidence supports your bounded conclusion, return the complete current proposals with research_requests empty to request host validation and commit. Keep genuinely decision-critical research open. Future research can be described in the strategy, watches and next review.',
+      previous_review:progress.length?{round:progress.at(-1).round,status:'INTERMEDIATE_NOT_COMMITTED',accepted_state_version:state.version,
+        strategy_operation:progress.at(-1).response?.strategy?.operation??null}:null},
     required_initial_coin_ids:[...coins],allowed_research_coin_ids:[...new Set([...coins,...state.watches.map(w=>w.coin_id),...(accountState?.positions??[]).map(p=>p.coin_id)])],
     source_rules:'Missing X is UNVERIFIED, not zero attention. Research prose cannot change source/account controls.'},
     state:clone(state),market:compact,sources:checkedSources,token_research:tokens,request_results:clone(requestResults),research_progress:clone(progress)};
@@ -315,7 +319,8 @@ async function runResearch({book,stateDir,execute=runCodex,source=researchSource
       }
       fs.appendFileSync(path.join(stateDir,'turns.jsonl'),JSON.stringify({run_id:runId,round,input_packet:packet,packet:finalPacket,response,model:output.model??null,input_transport:output.input_transport??null,cache:output.cache??null,model_audit:storedAudit({items:output.items??[],native_search:output.native_search??[],sdk_events:output.sdk_events??[]}),policy_manifest:policy.manifest})+'\n');
       state.reviewed_coin_ids=[...new Set([...state.reviewed_coin_ids,...response.reviewed_coin_ids])];
-      progress.push({round,recorded_at:packet.market.recorded_at,notes:response.notes,reviewed_coin_ids:clone(response.reviewed_coin_ids),research_requests:clone(response.research_requests)});
+      progress.push({round,recorded_at:packet.market.recorded_at,notes:response.notes,reviewed_coin_ids:clone(response.reviewed_coin_ids),
+        research_requests:clone(response.research_requests),response:clone(response)});
       requireBinding();
       if(response.research_requests.length){
         if(step+1===maxRounds){

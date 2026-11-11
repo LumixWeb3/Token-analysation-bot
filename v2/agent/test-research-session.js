@@ -85,3 +85,24 @@ test('persistent role cache restores the same owned MCP address and exact recove
   cache=createResearchCache({directory:cacheDir});
   try{await runResearchSession({book:book(),stateDir,cacheSession:cache,browserOptions:false,execute});}finally{await cache.close();}
 });
+
+test('intermediate strategy and watch proposals retain their complete response and explicit uncommitted acknowledgement',async t=>{
+  const {runResearch}=require('./research-host');
+  const stateDir=directory(t);let proposal,turns=0;
+  const result=await runResearch({book:book(),stateDir,broker:{capabilities:{},collect:async request=>({request,status:'UNVERIFIED',reason:'FIXTURE_ONLY',sources:[],token_evidence:[]})},
+    execute:async({packet})=>{
+      if(turns++===0){
+        proposal={...reply(),reviewed_coin_ids:packet.controls.required_initial_coin_ids,
+          cited_source_ids:[packet.source_catalogue.find(s=>s.qualified).id],strategy:{operation:'REVISE',markdown:'Bounded initial working strategy with explicit research gaps.'},
+          watches:[{coin_id:packet.controls.required_initial_coin_ids[0],thesis:'Conditional research lead',condition:'Fresh evidence before entry',review_at:new Date(Date.now()+600000).toISOString()}],
+          research_requests:[{kind:'gmgn_token',input:packet.controls.required_initial_coin_ids[0],reason:'Inspect the unresolved token'}]};
+        return{text:JSON.stringify(proposal)};
+      }
+      assert.equal(packet.state.version,0);assert.equal(packet.state.strategy_status,'UNINITIALIZED');
+      assert.deepEqual(packet.research_progress[0].response,proposal);
+      assert.deepEqual(packet.controls.review_protocol.previous_review,{round:0,status:'INTERMEDIATE_NOT_COMMITTED',accepted_state_version:0,strategy_operation:'REVISE'});
+      return{text:JSON.stringify({...proposal,research_requests:[]})};
+    }});
+  assert.equal(result.status,'COMMITTED');assert.equal(readState(stateDir).strategy_status,'RESEARCHED');
+  assert.equal(readState(stateDir).watches.length,1);assert.equal(readState(stateDir).version,1);
+});

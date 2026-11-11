@@ -36,9 +36,11 @@ function prepareModelInput(packet) {
       if (value.length >= 3 && first && !Array.isArray(first) && typeof first === 'object') {
         const columns = Object.keys(first);
         const signature = JSON.stringify(columns);
-        if (columns.length && value.every(row => row && !Array.isArray(row) && typeof row === 'object' &&
-          JSON.stringify(Object.keys(row)) === signature && columns.every(key => row[key] !== undefined) &&
-          (occurrences.get(JSON.stringify(row)) ?? 0) < 2))
+        // Shared parent arrays already receive references. Their distinct rows
+        // can still share field names without repeating every key per wallet.
+        if (columns.length && new Set(value.map(row=>JSON.stringify(row))).size===value.length &&
+          value.every(row => row && !Array.isArray(row) && typeof row === 'object' &&
+          JSON.stringify(Object.keys(row)) === signature && columns.every(key => row[key] !== undefined)))
           return { $table: { columns, rows: value.map(row => columns.map(key => encode(row[key]))) } };
       }
       return value.map(encode);
