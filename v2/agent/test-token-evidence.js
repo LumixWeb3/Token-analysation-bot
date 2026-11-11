@@ -172,7 +172,9 @@ test('the research host can cite real GMGN evidence and rechecks it instead of a
   assert(sourceCatalogue(packet,NOW).some(s=>s.id===o.id&&s.qualified));
   const r={notes:'Exact-token source reviewed.',reviewed_coin_ids:[SOL],cited_source_ids:[o.id],strategy:null,watches:[],research_requests:[],next_review_at:null};
   assert.equal(validateReview(r,packet,{now:NOW}),r);
-  assert.throws(()=>validateReview(r,packet,{now:NOW+300001}),/UNVERIFIED_SOURCE_CITATION/);
+  assert.equal(validateReview(r,packet,{now:NOW+300001}),r);
+  assert.equal(sourceCatalogue(packet,NOW+300001).find(s=>s.id===o.id).qualified,false);
+  assert.throws(()=>validateReview({...r,strategy:{operation:'NOTE',markdown:'Unsupported current observation'}},packet,{now:NOW+300001}),/UNVERIFIED_SOURCE_CITATION/);
   packet.token_research[0].network.observations[0].raw_public.holder_count=999;
   assert.throws(()=>validateReview(r,packet,{now:NOW}),/TOKEN_JSON_INTEGRITY/);
 });

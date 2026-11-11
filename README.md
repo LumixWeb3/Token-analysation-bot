@@ -139,7 +139,9 @@ Stop with Ctrl+C. Shutdown preserves holdings and closes owned resources. Source
 
 The main model observes both configured feed scopes, forms the strategy and considers new arrivals. Luna handles recurring watch/position reviews against that shared strategy. Ordinary recals default to five minutes and a main refresh to ten minutes, with coalesced earlier wakes for arrivals or due watches. Fixed observation cohorts expire after ten minutes and retain their original source timestamps.
 
-Discovery frame hashes are citable for their observed feed fields. They do not qualify X, charts or quotes. Invalid reviews retain their input/output audit and never become accepted decisions.
+SDK and MCP delivery can share repeated source values and uniform-array field names through JSON references and column/row tables. The host verifies exact reconstruction and records original/delivered byte counts. Original evidence and actual chart attachments remain available in their original form.
+
+Known source references retain their current qualification states. A failed reference can document an access gap. Unknown IDs fail validation, strategy changes require qualified support, and entries require qualified exact-token/chart/linked-X evidence. Discovery frame references describe their observed fields. Invalid reviews retain their input/output audit and never become accepted decisions.
 
 Paper proposals are accepted only through the structured action interface. New exposure requires an accepted strategy, qualified exact-token/chart/linked-X evidence, current account revision and a fresh USD quote inside the proposed entry range. Existing costs, 25 percent cash/per-coin caps, five-position limit and action cooldown remain enforced. Reductions use remaining holdings. A replay reconciles the original receipt. It cannot create a duplicate fill.
 
@@ -147,7 +149,7 @@ Local health, accepted strategy, review history and action outcomes are under ig
 
 ## Verification status and remaining work
 
-Offline accounting, model handoff, scheduling and recovery fixtures pass. Bounded live discovery, exact-token/chart capture, shared-profile research and a genuine model-driven browser check passed in development. These checks establish the observed components. The complete natural strategy-to-fill session and overnight uptime remain unverified. The first live follow-up currently stops at `RESEARCH_INPUT_OVERSIZE_NO_TRUNCATION` after detailed token/social collection. Lossless input handling must be repaired and verified before a full deployment.
+Offline accounting, model handoff, scheduling and recovery fixtures pass. Bounded live discovery, exact-token/chart capture, shared-profile research and a genuine model-driven browser check passed in development. These checks establish the observed components. The complete natural strategy-to-fill session and overnight uptime remain unverified. A detailed live source reproduction now passes the input bound through lossless shared JSON references and column/row encoding for uniform object arrays. Exact reconstruction preserves every original field and repeated occurrence. Actual market-strategy and paper-session qualification remains in progress.
 
 Automatic Trending mutation requires an integrated live UI/query verifier and currently reports unavailable in this runner. Native Axiom ranked top20 order, labels and freshness need qualification. Abandoned locks or interrupted ACTIVE research checkpoints require deliberate revalidation. The browser destination screen also needs deployment-level network isolation for stronger redirect/DNS-rebinding containment.
 

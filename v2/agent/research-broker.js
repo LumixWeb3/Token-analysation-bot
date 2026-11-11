@@ -47,7 +47,11 @@ function createResearchBroker({acquirePage=null,xApi=null,now=()=>Date.now(),col
         if(expired&&late?.owned===true&&typeof late.release==='function')Promise.resolve().then(()=>late.release()).catch(()=>{});
       },()=>{});
       try{lease=await Promise.race([acquisition,new Promise((_,reject)=>{timer=setTimeout(()=>{expired=true;reject(Error('ACQUIRE_TIMEOUT'));},acquireTimeoutMs);})]);}
-      catch{fault();result.reason='BROWSER_LEASE_ACQUIRE_FAILED_OR_TIMED_OUT';return result;}
+      catch(error){
+        fault();result.reason='BROWSER_LEASE_ACQUIRE_FAILED_OR_TIMED_OUT';
+        result.attempts.push({transport:'OWNED_BROWSER',status:'UNAVAILABLE',reason:/^[A-Z][A-Z0-9_]{1,100}$/.test(error.message)?error.message:'BROWSER_LEASE_ACQUISITION_FAILED'});
+        return result;
+      }
       finally{clearTimeout(timer);}
       if(lease?.owned!==true||!lease.page||typeof lease.release!=='function'){
         fault();result.reason='NAVIGATION_OWNED_PAGE_REQUIRED';return result;

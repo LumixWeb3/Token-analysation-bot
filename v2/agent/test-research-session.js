@@ -30,4 +30,7 @@ test('model failure closes ephemeral tools and never commits a fabricated comple
   const stateDir=directory(t);let closed=0;
   await assert.rejects(runResearchSession({book:book(),stateDir,startServer:async()=>({url:'http://127.0.0.1:1/mcp/fixture',enabledTools:['discovery_read'],close:async()=>{closed++;}}),execute:async()=>{throw Error('FIXTURE_MODEL_FAILED');}}),/FIXTURE_MODEL_FAILED/);
   assert.equal(closed,1);assert.equal(readState(stateDir).version,0);assert(!fs.existsSync(path.join(stateDir,'research.lock')));
+  const failed=JSON.parse(fs.readFileSync(path.join(stateDir,'turns.jsonl'),'utf8').trim());
+  assert.equal(failed.status,'MODEL_EXECUTION_FAILED');assert.equal(failed.reason,'FIXTURE_MODEL_FAILED');
+  assert.equal(failed.input_bytes,Buffer.byteLength(JSON.stringify(failed.input_packet)));
 });

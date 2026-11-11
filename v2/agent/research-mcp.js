@@ -2,6 +2,7 @@
 // Ephemeral loopback MCP endpoint, closed by its parent after the model turn.
 const http=require('node:http'),crypto=require('node:crypto');
 const {tokenForPacket}=require('./token-evidence');
+const {prepareModelInput}=require('./lossless-input');
 const MAX_BODY=1024*1024;
 function modelContent(result,now=Date.now()){
   const projected=JSON.parse(JSON.stringify(result)),images=[];
@@ -10,7 +11,8 @@ function modelContent(result,now=Date.now()){
     for(const image of checked.images)images.push({type:'image',data:image.base64,mimeType:image.content_type});
     return checked.packet;
   });
-  return{content:[{type:'text',text:JSON.stringify(projected)},...images],structuredContent:projected,isError:false};
+  const prepared=prepareModelInput(projected);
+  return{content:[{type:'text',text:prepared.text},...images],structuredContent:JSON.parse(prepared.text),isError:false};
 }
 async function startResearchMcpServer({tools,port=0,now=()=>Date.now()}={}){
   if(!tools||typeof tools.callTool!=='function'||!Array.isArray(tools.definitions))throw Error('RESEARCH_MCP_TOOLS_REQUIRED');

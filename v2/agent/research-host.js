@@ -97,8 +97,9 @@ function packetFor(book,state,sources=[],tokenEvidence=[],{capabilities={},reque
 function validateReview(value,packet,{now=Date.now(),knownWatches=packet.state?.watches??[]}={}){
   assertKeys(value,[...Object.keys(schema.properties),...(packet.controls.account_state?['paper_action']:[])]);
   if(typeof value.notes!=='string'||!value.notes.trim()||value.notes.length>100000)throw Error('RESEARCH_NOTES_INVALID');
+  const catalogue=sourceCatalogue(packet,now);
   const ids=new Set(packet.controls.required_initial_coin_ids),knownIds=new Set([...ids,...knownWatches.map(w=>w.coin_id),...(packet.controls.account_state?.positions??[]).map(p=>p.coin_id)]),
-    sourceIds=new Set(sourceCatalogue(packet,now).filter(s=>s.qualified).map(s=>s.id));
+    sourceIds=new Set(catalogue.map(s=>s.id)),qualifiedSourceIds=new Set(catalogue.filter(s=>s.qualified).map(s=>s.id));
   for(const key of ['reviewed_coin_ids','cited_source_ids']){
     if(!Array.isArray(value[key])||value[key].some(x=>typeof x!=='string')||new Set(value[key]).size!==value[key].length)throw Error('RESEARCH_ID_LIST_INVALID');
   }
@@ -124,6 +125,7 @@ function validateReview(value,packet,{now=Date.now(),knownWatches=packet.state?.
     const covered=new Set([...packet.state.reviewed_coin_ids,...value.reviewed_coin_ids].filter(id=>ids.has(id)));
     if(value.strategy.operation==='REVISE'&&packet.state.strategy_status==='UNINITIALIZED'&&covered.size!==ids.size)throw Error('INITIAL_COHORT_NOT_FULLY_REVIEWED');
     if(['REVISE','NOTE'].includes(value.strategy.operation)&&!value.cited_source_ids.length)throw Error('STRATEGY_SOURCE_EVIDENCE_REQUIRED');
+    if(['REVISE','NOTE'].includes(value.strategy.operation)&&!value.cited_source_ids.some(id=>qualifiedSourceIds.has(id)))throw Error('UNVERIFIED_SOURCE_CITATION');
   }
   if(packet.controls.account_state&&value.paper_action!==null){
     const action=validateAction(value.paper_action);
@@ -259,9 +261,17 @@ async function runResearch({book,stateDir,execute=runCodex,source=researchSource
     }
     async function collectRequests(requests){
       for(const request of requests){
-        const collected=broker?await broker.collect(request):['gmgn_token','web_page'].includes(request.kind)?{request,status:'UNVERIFIED',reason:'OWNED_BROWSER_NOT_CONFIGURED',sources:[],token_evidence:[]}:
-          {request,status:'OBSERVED',reason:null,sources:[await source(request)],token_evidence:[]};
-        acceptCollected(collected,request);
+        try{
+          const collected=broker?await broker.collect(request):['gmgn_token','web_page'].includes(request.kind)?{request,status:'UNVERIFIED',reason:'OWNED_BROWSER_NOT_CONFIGURED',sources:[],token_evidence:[]}:
+            {request,status:'OBSERVED',reason:null,sources:[await source(request)],token_evidence:[]};
+          acceptCollected(collected,request);
+        }catch(error){
+          const reason=/^[A-Z][A-Z0-9_:,]+$/.test(error.message)?error.message:'RESEARCH_SOURCE_PROCESSING_FAILED';
+          const root=path.resolve(__dirname,'../..');
+          const frames=String(error.stack).split('\n').slice(1).filter(line=>line.includes(root)).map(line=>line.replaceAll(root,'<repo>')).slice(0,6);
+          fs.appendFileSync(path.join(stateDir,'turns.jsonl'),JSON.stringify({run_id:runId,status:'SOURCE_PROCESSING_FAILED',request,reason,error_type:error.name,frames})+'\n');
+          throw Error(reason);
+        }
       }
 
     }
@@ -275,7 +285,14 @@ async function runResearch({book,stateDir,execute=runCodex,source=researchSource
       if(runtime)packet.controls.agent=clone(runtime);
       packet.available_token_evidence=tokens.map(e=>({coin_id:e.coin_id,evidence_id:e.id,collected_at:e.collected_at,selected:active.includes(e)}));
       const images=active.flatMap(e=>tokenForPacket(e,sources,Date.parse(packet.market.recorded_at)).images);
-      const output=await execute({policy:policy.text,packet,schema:responseSchema,images});
+      let output;
+      try{output=await execute({policy:policy.text,packet,schema:responseSchema,images});}
+      catch(error){
+        fs.appendFileSync(path.join(stateDir,'turns.jsonl'),JSON.stringify({run_id:runId,round,status:'MODEL_EXECUTION_FAILED',
+          reason:/^[A-Z][A-Z0-9_:,]+$/.test(error.message)?error.message:'RESEARCH_EXECUTION_FAILED',
+          input_packet:packet,input_bytes:Buffer.byteLength(JSON.stringify(packet)),policy_manifest:policy.manifest})+'\n');
+        throw error;
+      }
       if(output.scope_changed===true){
         fs.appendFileSync(path.join(stateDir,'turns.jsonl'),JSON.stringify({run_id:runId,round,status:'SCOPE_CHANGED_REOBSERVATION_REQUIRED',packet,raw_response:output.text,tool_results:(output.tool_results??[]).map(r=>({status:r.status,reason:r.reason??null,source_ids:(r.sources??[]).map(s=>s.id),token_evidence_ids:(r.token_evidence??[]).map(t=>t.id)})),policy_manifest:policy.manifest})+'\n');
         return{run_id:runId,status:'REOBSERVATION_REQUIRED',reason:'TRENDING_FILTER_SCOPE_CHANGED',version:accepted.version};
@@ -293,7 +310,7 @@ async function runResearch({book,stateDir,execute=runCodex,source=researchSource
           raw_response:output.text,model:output.model??null,model_audit:storedAudit({items:output.items??[],native_search:output.native_search??[],sdk_events:output.sdk_events??[]}),policy_manifest:policy.manifest})+'\n');
         throw error;
       }
-      fs.appendFileSync(path.join(stateDir,'turns.jsonl'),JSON.stringify({run_id:runId,round,input_packet:packet,packet:finalPacket,response,model:output.model??null,model_audit:storedAudit({items:output.items??[],native_search:output.native_search??[],sdk_events:output.sdk_events??[]}),policy_manifest:policy.manifest})+'\n');
+      fs.appendFileSync(path.join(stateDir,'turns.jsonl'),JSON.stringify({run_id:runId,round,input_packet:packet,packet:finalPacket,response,model:output.model??null,input_transport:output.input_transport??null,model_audit:storedAudit({items:output.items??[],native_search:output.native_search??[],sdk_events:output.sdk_events??[]}),policy_manifest:policy.manifest})+'\n');
       state.reviewed_coin_ids=[...new Set([...state.reviewed_coin_ids,...response.reviewed_coin_ids])];
       progress.push({round,recorded_at:packet.market.recorded_at,notes:response.notes,reviewed_coin_ids:clone(response.reviewed_coin_ids),research_requests:clone(response.research_requests)});
       requireBinding();

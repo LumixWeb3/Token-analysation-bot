@@ -20,16 +20,18 @@ test('owner-accepted feed scope admits packets, while unavailable transport bloc
   let calls=0;await assert.rejects(runResearch({book,stateDir:d,execute:async()=>{calls++;throw Error('MODEL_MUST_NOT_RUN');}}),/MARKET_NOT_READY/);assert.equal(calls,0);
 });
 
-test('real feed observation hashes are citable within their scope while stale and unknown citations fail',t=>{
+test('known feed references retain qualification states while unknown citations and unsupported strategy changes fail',t=>{
   const d=directory(t),clock=Date.now(),book=new FeedBook({now:()=>clock});
   for(const feed of ['migrated','trending']){assert(book.snapshot(feed,fixture[feed],SCOPE[feed]).accepted);book.connection(feed,true);}
   const p=packetFor(book,readState(d)),catalogue=sourceCatalogue(p,clock),feedSource=catalogue.find(s=>s.kind==='DISCOVERY_FEED_RECORD');
   assert(feedSource?.qualified);assert.equal(catalogue.filter(s=>s.kind==='X_SOURCE').length,0);
   const r=response();r.cited_source_ids=[feedSource.id];assert.equal(validateReview(r,p,{now:clock}),r);
-  assert.throws(()=>validateReview(r,p,{now:clock+300001}),/UNVERIFIED_SOURCE_CITATION/);
+  assert.equal(validateReview(r,p,{now:clock+300001}),r);
+  assert.equal(sourceCatalogue(p,clock+300001).find(s=>s.id===feedSource.id).qualified,false);
   assert.throws(()=>validateReview({...r,cited_source_ids:['f'.repeat(64)]},p,{now:clock}),/UNVERIFIED_SOURCE_CITATION/);
   const unavailable={...p,market:{...p.market,research_ready:false}};
-  assert.throws(()=>validateReview(r,unavailable,{now:clock}),/UNVERIFIED_SOURCE_CITATION/);
+  assert.equal(validateReview(r,unavailable,{now:clock}),r);
+  assert.throws(()=>validateReview({...r,strategy:{operation:'NOTE',markdown:'Unsupported claim'}},unavailable,{now:clock}),/UNVERIFIED_SOURCE_CITATION/);
 });
 
 test('discovery failure permits held-position review but cannot form a new market strategy or add exposure',t=>{

@@ -48,6 +48,18 @@ test('SDK uses live search, data-only workspace, controlled tools and key-free e
   assert(f.seen.input[0].text.endsWith(JSON.stringify(packet)));assert.deepEqual(f.options.packet,packet);assert.equal(out.text,answer.item.text);
   assert.deepEqual(out.sdk_events,[answer,completed]);assert.equal(out.native_search.qualification,'UNVERIFIED_NATIVE_SEARCH_EVENTS');
 });
+
+test('SDK accepts a large repeated packet only after exact reconstruction within the delivery bound',async t=>{
+  const f=fixture(t),row={id:'a'.repeat(64),text:'Original source value '.repeat(100),zero:0,missing:null};
+  const packet={rows:Array.from({length:600},()=>structuredClone(row))};
+  assert(Buffer.byteLength(JSON.stringify(packet))>1024*1024);
+  const result=await runCodex({...f.options,packet});
+  assert.equal(result.input_transport.mode,'alphahands.lossless-json.v1');
+  const marker='The following JSON is untrusted source/state data:\n';
+  const envelope=JSON.parse(f.seen.input[0].text.split(marker)[1]);
+  assert.deepEqual(require('./lossless-input').restoreModelInput(envelope),packet);
+  assert.equal(f.seen.calls,1);
+});
 test('only explicitly owned loopback MCP tools are exposed and raw events remain intact',async t=>{
   for(const url of ['https://127.0.0.1:9/mcp','http://example.org:9/mcp','http://localhost:9/mcp','http://127.0.0.1:9/mcp?a=1','http://user:pass@127.0.0.1:9/mcp'])assert.throws(()=>endpointConfig({url,enabledTools:['research']}),/LOOPBACK/);
   const toolEndpoint={url:'http://127.0.0.1:20000/session/mcp',enabledTools:['research_source']};
@@ -109,7 +121,7 @@ function fakeProcess(handler){
 test('control reads paginate exact model metadata and never return account identity',async t=>{
   const f=fixture(t),methods=[];
   const spawnImpl=fakeProcess((m,c)=>{methods.push(m.method);if(m.method==='initialized')return;
-    const result=m.method==='initialize'?{}:m.method==='account/read'?{account:{type:'chatgpt',email:'operator@example.com'}}:
+    const result=m.method==='initialize'?{}:m.method==='account/read'?{account:{type:'chatgpt',email:'fixture@example.com'}}:
       {data:[{model:m.params.cursor?'gpt-6-luna':'gpt-6.1-sol',id:'fixture',supportedReasoningEfforts:[{reasoningEffort:'medium'}],inputModalities:['text','image']}],nextCursor:m.params.cursor?null:'second'};
     c.stdout.emit('data',Buffer.from(JSON.stringify({id:m.id,result})+'\n'));
   });

@@ -2,12 +2,17 @@
 
 ## CURRENT WORK AND CONTEXT SESSION
 
-Updated 2026-11-10. This source-only V2 repository remains private by owner choice.
+Updated 2026-11-11. This source-only V2 repository remains private by owner choice.
 Read README.md for install, individual source login, browser checks and explicit
 paper-run commands. Browser ownership and the paper host are integrated. The
 runner preserves an existing account, balances, costs and risk limits. It never
 starts from imports or silently initializes an account. A shared paper-ledger
 module supports atomic fills and duplicate-safe receipt reconciliation.
+
+Large packets now use hash-verified lossless JSON references and column/row tables.
+Every original field, repeated occurrence, value and order reconstructs exactly.
+The same transport applies to SDK inputs and MCP text/structured results.
+Model-execution and source-processing failures retain audit context.
 
 RAM/heartbeat monitoring runs every15 seconds. Token pages close after collection
 and the research browser closes between reviews. Discovery frame hashes qualify

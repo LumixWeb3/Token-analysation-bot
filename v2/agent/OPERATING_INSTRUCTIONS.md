@@ -70,6 +70,8 @@ The owner's current V2 roles are GPT-6.1 Sol at medium reasoning for main resear
 
 If neither route qualifies a required source, preserve the gap and affected decision blocker. Optional missing enrichment is not a global outage. Do not loop indefinitely, weaken the source gate or infer that missing results mean no attention.
 
+Source references may identify a known failed or stale observation when explaining a gap or requesting its retry. Preserve its UNVERIFIED state and describe only the failure or historical scope it establishes. Strategy revisions and notes require qualified supporting sources. New exposure still requires qualified exact-token, chart and linked-X evidence plus the host's current quote/account checks. A reference to an inaccessible source supplies no unseen content.
+
 ## Research like a patient trader
 
 Start with what changed, which decision it affects and the most useful next question. You may follow a relevant new narrative or comparison within scope; not every investigation must traverse the same checklist.
