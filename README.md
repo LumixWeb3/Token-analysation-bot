@@ -200,3 +200,9 @@ increment from the previous completed baseline and retain raw cumulative totals.
 The baseline persists across restarts. A legacy thread with no saved baseline,
 reset counters or an interrupted interval carries an explicit scope/availability
 label. Earlier cache hits cannot imply a cache hit on the current review.
+
+Research allows ten minutes overall, with a five-minute no-progress watchdog.
+Substantive SDK events refresh the idle watchdog, including progress following
+native conversation compaction. Caller cancellation and the absolute deadline
+remain effective. Failed-turn and health records expose elapsed time, idle time
+and the last SDK event type. Source freshness and paper-entry gates still apply.

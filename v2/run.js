@@ -123,7 +123,7 @@ async function runBot({accountFile,stateDir=path.resolve(__dirname,'../v2-runtim
     const reason=stopReason??(/^[A-Z][A-Z0-9_:,.-]{1,180}$/.test(error.message)?error.message:'BOT_UNAVAILABLE');
     const root=path.resolve(__dirname,'..');
     const frames=String(error.stack).split('\n').slice(1).filter(line=>line.includes(root)).map(line=>line.replaceAll(root,'<repo>')).slice(0,6);
-    status({status:'BLOCKED',reason,error_type:error.name,frames});throw Error(reason);
+    status({status:'BLOCKED',reason,error_type:error.name,frames,model_execution:error.execution??null});throw Error(reason);
   }finally{
     abort.abort();signal?.removeEventListener('abort',cancel);
     clearInterval(healthTimer);

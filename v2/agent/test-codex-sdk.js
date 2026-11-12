@@ -207,6 +207,45 @@ test('timeouts and caller abort propagate to SDK and cannot launch after delayed
   let release;const h=fixture(t),pending=runCodex({...h.options,timeoutMs:10,usageProvider:()=>new Promise(r=>{release=r;})});
   await assert.rejects(pending,/MODEL_TIMEOUT/);release({inference_allowed:true});await new Promise(r=>setImmediate(r));assert.equal(h.seen.calls,0);
 });
+
+test('compaction and continued SDK progress can complete beyond the old three-minute deadline',async t=>{
+  t.mock.timers.enable({apis:['setTimeout','Date']});
+  const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+  const f=fixture(t,{factory:()=> (async function*(){
+    yield{type:'turn.started'};
+    await wait(147000);
+    yield{type:'item.completed',item:{id:'compaction-progress',type:'reasoning',text:'Fixture progress'}};
+    await wait(60000);
+    yield answer;yield completed;
+  })()});
+  const pending=runCodex(f.options);
+  for(let i=0;i<20&&!f.seen.turn;i++)await new Promise(resolve=>setImmediate(resolve));
+  assert(f.seen.turn);
+  await new Promise(resolve=>setImmediate(resolve));
+  t.mock.timers.tick(147000);await new Promise(resolve=>setImmediate(resolve));
+  t.mock.timers.tick(60000);
+  const result=await pending;
+  assert.equal(result.execution.elapsed_ms,207000);assert.equal(result.execution.deadline_ms,600000);
+  assert.equal(result.execution.idle_timeout_ms,300000);assert(!f.seen.turn.signal.aborted);
+});
+
+test('a silent SDK stalls while ongoing progress still cannot exceed the absolute deadline',async t=>{
+  t.mock.timers.enable({apis:['setTimeout','Date']});
+  const stalled=fixture(t,{factory:signal=>(async function*(){await new Promise(resolve=>signal.addEventListener('abort',resolve,{once:true}));})()});
+  const stall=runCodex({...stalled.options,timeoutMs:600000,idleTimeoutMs:300000});
+  const stallCheck=assert.rejects(stall,error=>error.message==='RESEARCH_MODEL_STALLED'&&error.execution.idle_ms===300000);
+  for(let i=0;i<20&&!stalled.seen.turn;i++)await new Promise(resolve=>setImmediate(resolve));
+  t.mock.timers.tick(300000);await stallCheck;assert(stalled.seen.turn.signal.aborted);
+  const active=fixture(t,{factory:signal=>(async function*(){
+    while(!signal.aborted){yield{type:'item.updated',item:{id:'progress',type:'reasoning',text:'Fixture progress'}};
+      await new Promise(resolve=>setTimeout(resolve,100000));}
+  })()});
+  const running=runCodex({...active.options,timeoutMs:600000,idleTimeoutMs:300000});
+  const deadlineCheck=assert.rejects(running,error=>error.message==='RESEARCH_MODEL_TIMEOUT'&&error.execution.elapsed_ms===600000);
+  for(let i=0;i<20&&!active.seen.turn;i++)await new Promise(resolve=>setImmediate(resolve));
+  for(let i=0;i<6;i++){t.mock.timers.tick(100000);await new Promise(resolve=>setImmediate(resolve));}
+  await deadlineCheck;assert(active.seen.turn.signal.aborted);
+});
 test('isolated home refuses inherited configuration without reading it',t=>{
   const f=fixture(t);fs.writeFileSync(path.join(f.options.home,'config.toml'),'SYNTHETIC_PRIVATE_SENTINEL');
   assert.throws(()=>sdkOptions({home:f.options.home}),e=>e.message==='CODEX_ISOLATED_HOME_CONFIG_PRESENT');

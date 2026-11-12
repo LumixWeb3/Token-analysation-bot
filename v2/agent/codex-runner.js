@@ -61,12 +61,23 @@ function usageInterval(current,previous,{resumed=false,uncertain=false}={}){
     return{scope:'UNAVAILABLE',reason:'SDK_COUNTERS_REBASED',tokens:null};
   return{scope:uncertain?'SINCE_COMPLETION_INCLUDING_INTERRUPTION':'SDK_TURN',reason:null,tokens};
 }
-async function runCodex({policy,packet,schema,images=[],timeoutMs=180000,usageProvider=readUsage,
+async function runCodex({policy,packet,schema,images=[],timeoutMs=600000,idleTimeoutMs=Math.min(timeoutMs,300000),usageProvider=readUsage,
   availabilityProvider=readModelAvailability,clientFactory=createSdkClient,role='main',toolEndpoint,home=isolatedHome(),signal,conversation=null}={}){
   if(!Number.isInteger(timeoutMs)||timeoutMs<=0||timeoutMs>3600000)throw Error('RESEARCH_MODEL_TIMEOUT_INVALID');
-  const controller=new AbortController();let timedOut=false,turnStarted=false;
+  if(!Number.isInteger(idleTimeoutMs)||idleTimeoutMs<=0||idleTimeoutMs>timeoutMs)throw Error('RESEARCH_MODEL_IDLE_TIMEOUT_INVALID');
+  const startedAt=Date.now(),controller=new AbortController();
+  let timedOut=null,turnStarted=false,turnStartedAt=null,lastProgressAt=startedAt,eventCount=0,lastEvent=null,idleTimer=null;
+  const execution=()=>({elapsed_ms:Date.now()-startedAt,sdk_elapsed_ms:turnStartedAt===null?null:Date.now()-turnStartedAt,
+    idle_ms:Date.now()-lastProgressAt,deadline_ms:timeoutMs,idle_timeout_ms:idleTimeoutMs,event_count:eventCount,last_event:lastEvent});
+  function progress(event=null){
+    lastProgressAt=Date.now();
+    if(event){eventCount++;lastEvent={type:event.type,item_type:event.item?.type??null};}
+    clearTimeout(idleTimer);
+    idleTimer=setTimeout(()=>{timedOut='NO_PROGRESS';controller.abort();},idleTimeoutMs);
+  }
   const cancel=()=>controller.abort();signal?.addEventListener('abort',cancel,{once:true});if(signal?.aborted)cancel();
-  const timer=setTimeout(()=>{timedOut=true;controller.abort();},timeoutMs);
+  const timer=setTimeout(()=>{timedOut='DEADLINE';controller.abort();},timeoutMs);
+  progress();
   try{return await abortable(async()=>{
   const usage=await usageProvider({home,signal:controller.signal});if(!usage.inference_allowed)throw Error('CODEX_USAGE_RESERVE_REACHED');
   const selection=modelForRole(role);
@@ -120,12 +131,20 @@ async function runCodex({policy,packet,schema,images=[],timeoutMs=180000,usagePr
   const thread=conversation?.thread??(conversation?.threadId?client.resumeThread(conversation.threadId,threadOptions):client.startThread(threadOptions));
   if(conversation)Object.assign(conversation,{client,thread,directory,binding});
   const packetSha=conversation?.store?.putPacket(packet);
-  if(conversation?.store)conversation.store.save({...conversation.record,phase:'ACTIVE',binding,turns:conversation.turns??0,usage_interval_uncertain:true});
-  turnStarted=true;
+  const activeRecord={...conversation?.record,phase:'ACTIVE',binding,turns:conversation?.turns??0,usage_interval_uncertain:true};
+  let lastProgressSaved=Date.now();
+  if(conversation?.store)conversation.store.save({...activeRecord,execution:execution()});
+  turnStarted=true;turnStartedAt=Date.now();progress();
   const {events}=await thread.runStreamed(input,{outputSchema:schema,signal:controller.signal});
   const audit=[],items=[];let text='',total=0,completed=false,modelUsage=null;
   for await(const event of events){
     if(controller.signal.aborted)throw Error('RESEARCH_MODEL_ABORTED');
+    if(['thread.started','turn.started','item.started','item.updated','item.completed','turn.completed'].includes(event.type)){
+      progress(event);
+      if(conversation?.store&&Date.now()-lastProgressSaved>=15000){
+        conversation.store.save({...activeRecord,execution:execution()});lastProgressSaved=Date.now();
+      }
+    }
     const encoded=JSON.stringify(event);total+=Buffer.byteLength(encoded);if(total>4*1024*1024)throw Error('RESEARCH_MODEL_OUTPUT_OVERSIZE');
     audit.push(event);
     if(event.type==='error'||event.type==='turn.failed')throw Error('CODEX_RESEARCH_FAILED');
@@ -151,13 +170,13 @@ async function runCodex({policy,packet,schema,images=[],timeoutMs=180000,usagePr
     if(conversation.store){
       if(typeof thread.id!=='string'||!/^[a-zA-Z0-9_-]{1,128}$/.test(thread.id))throw Error('RESEARCH_CONVERSATION_THREAD_ID_MISSING');
       conversation.record={...conversation.record,phase:'READY',binding,turns:conversation.turns,thread_id:thread.id,
-        packet_sha256:packetSha,usage_totals:modelUsage,usage_interval_uncertain:false};
+        packet_sha256:packetSha,usage_totals:modelUsage,usage_interval_uncertain:false,execution:execution()};
       conversation.store.save(conversation.record);
     }
   }
   const cached=measured.tokens?.cached_input_tokens??null;
   return{text,usage_before:usage,workspace:directory,input_transport:prepared.manifest,model:{...selection,sdk_version:'0.167.0',availability},
-    usage:modelUsage,usage_scope:'CONVERSATION_TOTAL',usage_interval:measured,
+    usage:modelUsage,usage_scope:'CONVERSATION_TOTAL',usage_interval:measured,execution:execution(),
     cache:{status:cached===null?'UNREPORTED':cached>0?'HIT':'MISS',cached_input_tokens:cached,input_tokens:measured.tokens?.input_tokens??null,
       scope:measured.scope,reason:measured.reason,conversation_totals:modelUsage,resumed,thread_id:thread.id??null},
     sdk_events:audit,items,native_search:{mode:'live',items:items.filter(i=>i.type==='web_search'),qualification:'UNVERIFIED_NATIVE_SEARCH_EVENTS'}};
@@ -165,10 +184,9 @@ async function runCodex({policy,packet,schema,images=[],timeoutMs=180000,usagePr
     controller.abort();
     if(turnStarted&&conversation?.thread)conversation.faulted=true;
     // SDK errors can contain raw stderr or source payloads. Return only our stable codes.
-    if(timedOut)throw Error('RESEARCH_MODEL_TIMEOUT');
-    if(signal?.aborted)throw Error('RESEARCH_MODEL_ABORTED');
-    const code=typeof error?.message==='string'&&/^(?:RESEARCH|CODEX|FIVE_HOUR)_[A-Z0-9_]+$/.test(error.message)?error.message:'CODEX_RESEARCH_FAILED';
-    throw Error(code);
-  }finally{clearTimeout(timer);signal?.removeEventListener('abort',cancel);}
+    const originalCode=typeof error?.message==='string'&&/^(?:RESEARCH|CODEX|FIVE_HOUR)_[A-Z0-9_]+$/.test(error.message)?error.message:'CODEX_RESEARCH_FAILED';
+    const code=timedOut==='NO_PROGRESS'?'RESEARCH_MODEL_STALLED':timedOut==='DEADLINE'?'RESEARCH_MODEL_TIMEOUT':signal?.aborted?'RESEARCH_MODEL_ABORTED':originalCode;
+    const failure=Error(code);failure.execution=execution();throw failure;
+  }finally{clearTimeout(timer);clearTimeout(idleTimer);signal?.removeEventListener('abort',cancel);}
 }
 module.exports={readUsage,quotaFromResult,runCodex,command,DISABLED,validateImageInputs,writeImageInputs,createSdkClient,usageInterval};

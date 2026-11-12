@@ -297,6 +297,7 @@ async function runResearch({book,stateDir,execute=runCodex,source=researchSource
       catch(error){
         fs.appendFileSync(path.join(stateDir,'turns.jsonl'),JSON.stringify({run_id:runId,round,status:'MODEL_EXECUTION_FAILED',
           reason:/^[A-Z][A-Z0-9_:,]+$/.test(error.message)?error.message:'RESEARCH_EXECUTION_FAILED',
+          model_execution:error.execution??null,
           input_packet:packet,input_bytes:Buffer.byteLength(JSON.stringify(packet)),policy_manifest:policy.manifest})+'\n');
         throw error;
       }
@@ -317,7 +318,7 @@ async function runResearch({book,stateDir,execute=runCodex,source=researchSource
           raw_response:output.text,model:output.model??null,model_audit:storedAudit({items:output.items??[],native_search:output.native_search??[],sdk_events:output.sdk_events??[]}),policy_manifest:policy.manifest})+'\n');
         throw error;
       }
-      fs.appendFileSync(path.join(stateDir,'turns.jsonl'),JSON.stringify({run_id:runId,round,input_packet:packet,packet:finalPacket,response,model:output.model??null,input_transport:output.input_transport??null,cache:output.cache??null,model_audit:storedAudit({items:output.items??[],native_search:output.native_search??[],sdk_events:output.sdk_events??[]}),policy_manifest:policy.manifest})+'\n');
+      fs.appendFileSync(path.join(stateDir,'turns.jsonl'),JSON.stringify({run_id:runId,round,input_packet:packet,packet:finalPacket,response,model:output.model??null,input_transport:output.input_transport??null,cache:output.cache??null,model_execution:output.execution??null,model_audit:storedAudit({items:output.items??[],native_search:output.native_search??[],sdk_events:output.sdk_events??[]}),policy_manifest:policy.manifest})+'\n');
       state.reviewed_coin_ids=[...new Set([...state.reviewed_coin_ids,...response.reviewed_coin_ids])];
       progress.push({round,recorded_at:packet.market.recorded_at,notes:response.notes,reviewed_coin_ids:clone(response.reviewed_coin_ids),
         research_requests:clone(response.research_requests),response:clone(response)});
