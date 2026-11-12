@@ -3,7 +3,7 @@
   "network": "sol",
   "tab": "trending",
   "filterQuery": {
-    "max_created": "2200",
+    "max_created": "720",
     "min_marketcap": "100000",
     "min_gas_fee": "14.7",
     "renounced": "1",

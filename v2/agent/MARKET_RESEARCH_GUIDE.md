@@ -26,7 +26,7 @@ For a promising candidate, explain the observable edge: what matters, why it is 
 
 Research can resolve present facts; it cannot prove a future return. Do not require guaranteed adoption, but do not rename an untested story an edge. Record what specific observation would justify upgrading a watch and which one would cancel it. Watch conditions must be capable of firing before the intended opportunity, not only after a move has happened.
 
-Use fresh Migrated observations to notice emerging leaders and qualified Trending 24h observations to compare sustained participation. The owner-selected Trending maximum token age is 2,200 hours (91 days 16 hours). Its ranking window is 24 hours. Read the actual packet's scope and filter evidence for the current observation cycle. Both feeds are discovery sources. Filters narrow the observed sample, so absence from a filtered list is not absence of activity. Older held positions and retained watches remain monitored independently of discovery filters.
+Use fresh Migrated observations to notice emerging leaders and qualified Trending 24h observations to compare sustained participation. The owner-selected Trending maximum token age is 30 days (720 hours). Its ranking window is 24 hours. Read the actual packet's scope and filter evidence for the current observation cycle. Both feeds are discovery sources. Filters narrow the observed sample, so absence from a filtered list is not absence of activity. Older held positions and retained watches remain monitored independently of discovery filters.
 
 ## Wallet evidence and the top twenty
 

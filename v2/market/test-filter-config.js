@@ -4,8 +4,8 @@ const {compileImport,loadOwnerFilters}=require('./filter-config');
 const sol=require('./filters/sol.json'),rh=require('./filters/robinhood.json');
 const clone=x=>JSON.parse(JSON.stringify(x));
 const compile=c=>compileImport(c,{platformScope:'ALL_CURRENT_GMGN'});
-test('owner scope keeps 24h ranking and 2200-hour maximum age with the saved filters',()=>{
-  for(const c of [sol,rh]){const p=compile(c);assert.equal(p.interval,'24h');assert.equal(p.chain,c.network);assert.equal(c.filterQuery.max_created,'2200');assert.equal(c.timeType.max,'h');assert.equal(p.filter.max_created,'132000m');assert.equal(p.filter.min_gas_fee,Number(c.filterQuery.min_gas_fee));assert.deepEqual(p.filter.launchpad_platform,[]);assert.deepEqual(p.filter.filters,c.network==='sol'?['renounced']:[]);assert(!('max_marketcap'in p.filter));assert.equal(p.filter.min_marketcap,100000);}
+test('owner scope keeps 24h ranking and 720-hour maximum age with the saved filters',()=>{
+  for(const c of [sol,rh]){const p=compile(c);assert.equal(p.interval,'24h');assert.equal(p.chain,c.network);assert.equal(c.filterQuery.max_created,'720');assert.equal(c.timeType.max,'h');assert.equal(p.filter.max_created,'43200m');assert.equal(p.filter.min_gas_fee,Number(c.filterQuery.min_gas_fee));assert.deepEqual(p.filter.launchpad_platform,[]);assert.deepEqual(p.filter.filters,c.network==='sol'?['renounced']:[]);assert(!('max_marketcap'in p.filter));assert.equal(p.filter.min_marketcap,100000);}
   // A new selected export key must not accidentally narrow the all-platform scope.
   const future=clone(sol);future.filterQuery.future_launchpad='1';assert.deepEqual(compile(future).filter,compile(sol).filter);
   assert.throws(()=>compileImport(sol),/EXPLICIT_PLATFORM_SCOPE/);
