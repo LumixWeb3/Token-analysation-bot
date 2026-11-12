@@ -2,7 +2,7 @@
 
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os');
 const {createRequire}=require('node:module');
-const MODELS=Object.freeze({main:Object.freeze({model:'gpt-6.1-sol',effort:'medium'}),
+const MODELS=Object.freeze({main:Object.freeze({model:'gpt-6-luna',effort:'high'}),
   // No previous V2 recal effort was pinned. Medium is an explicit implementation default.
   recal:Object.freeze({model:'gpt-6-luna',effort:'medium'})});
 const DISABLED=Object.freeze(['shell_tool','shell_snapshot','view_image','skill_mcp_dependency_install','plugins','apps','browser_use','browser_use_external','browser_use_full_cdp_access',

@@ -9,7 +9,7 @@ const {authCommand}=require('./codex-auth');
 const {validatePng}=require('./token-evidence');
 const completed={type:'turn.completed',usage:{input_tokens:10,output_tokens:2}};
 const answer={type:'item.completed',item:{id:'answer',type:'agent_message',text:'{"notes":"fixture"}'}};
-function catalog(){return{auth_method:'chatgpt',observed_at:new Date().toISOString(),models:Object.values(MODELS).map(x=>({model:x.model,efforts:['medium'],input_modalities:['text','image']}))};}
+function catalog(){return{auth_method:'chatgpt',observed_at:new Date().toISOString(),models:Object.values(MODELS).map(x=>({model:x.model,efforts:['medium','high'],input_modalities:['text','image']}))};}
 function fixture(t,{events=[answer,completed],factory}={}){
   const home=fs.mkdtempSync(path.join(os.tmpdir(),'alphahands-sdk-test-')),workspaces=[];let seen={calls:0};
   t.after(()=>{for(const dir of [home,...workspaces]){
@@ -32,10 +32,10 @@ function png(){
   return Buffer.concat([Buffer.from('89504e470d0a1a0a','hex'),chunk('IHDR',h),chunk('IDAT',zlib.deflateSync(Buffer.alloc(601*120))),chunk('IEND',Buffer.alloc(0))]);
 }
 test('exact role pins cannot silently use defaults or alternate models',async t=>{
-  assert.deepEqual(modelForRole(),{role:'main',model:'gpt-6.1-sol',effort:'medium'});
+  assert.deepEqual(modelForRole(),{role:'main',model:'gpt-6-luna',effort:'high'});
   assert.deepEqual(modelForRole('recal'),{role:'recal',model:'gpt-6-luna',effort:'medium'});
   const f=fixture(t);await assert.rejects(runCodex({...f.options,role:'other'}),/MODEL_ROLE_INVALID/);assert.equal(f.seen.calls,0);
-  for(const role of ['main','recal']){const out=await runCodex({...f.options,role});assert.equal(f.seen.thread.model,MODELS[role].model);assert.equal(f.seen.thread.modelReasoningEffort,'medium');assert.equal(out.model.role,role);}
+  for(const role of ['main','recal']){const out=await runCodex({...f.options,role});assert.equal(f.seen.thread.model,MODELS[role].model);assert.equal(f.seen.thread.modelReasoningEffort,MODELS[role].effort);assert.equal(out.model.role,role);}
 });
 test('SDK uses live search, data-only workspace, controlled tools and key-free environment',async t=>{
   const f=fixture(t),packet=structuredClone(f.options.packet),out=await runCodex(f.options);
@@ -123,14 +123,18 @@ test('a completed persisted SDK conversation resumes its exact thread and baseli
   const saved=store.load();assert.equal(saved.phase,'READY');assert.equal(saved.thread_id,'fixture-thread');
   const resumed={store,record:saved,binding:saved.binding,threadId:saved.thread_id,turns:saved.turns,
     directory:store.workspace,previousPacket:store.getPacket(saved.packet_sha256)};
+  resumed.record={...saved,policy_update_pending:true};
   let seen;
   const output=await runCodex({...f.options,conversation:resumed,packet:{...packet,time:2},clientFactory:async()=>({
     startThread:()=>assert.fail('Must resume the completed thread'),resumeThread:(id,options)=>{
-      seen={id,options};return{id,runStreamed:async()=>({events:(async function*(){yield answer;yield completed;})()})};
+      seen={id,options};return{id,runStreamed:async input=>{seen.input=input;return{events:(async function*(){yield answer;yield completed;})()};}};
     }})});
   assert.equal(seen.id,'fixture-thread');assert.equal(seen.options.workingDirectory,result.workspace);
   assert.equal(output.cache.resumed,true);assert.equal(output.input_transport.mode,'alphahands.packet-update.v1');
   assert.equal(store.load().turns,2);
+  assert(seen.input[0].text.startsWith(f.options.policy));
+  assert.equal(store.load().policy_update_pending,false);
+  assert.equal(seen.options.model,'gpt-6-luna');assert.equal(seen.options.modelReasoningEffort,'high');
   store.save({...store.load(),phase:'ACTIVE'});
   assert.throws(()=>store.load(),/REVALIDATION_REQUIRED/);
 });
@@ -179,7 +183,7 @@ test('missing subscription model, effort, modality or included usage blocks all 
   for(const c of [{...catalog(),auth_method:'apiKey'},{...catalog(),models:[]},{...catalog(),models:[{model:'gpt-6.1-sol',efforts:['high']}]}]){
     await assert.rejects(runCodex({...f.options,availabilityProvider:async()=>c}),/CODEX_(CHATGPT|REQUESTED)/);assert.equal(f.seen.calls,0);
   }
-  assert.throws(()=>assertModelAvailable({...catalog(),models:[{model:'gpt-6.1-sol',efforts:['medium'],input_modalities:['text']}]},modelForRole(),{images:true}),/IMAGE_UNAVAILABLE/);
+  assert.throws(()=>assertModelAvailable({...catalog(),models:[{model:'gpt-6-luna',efforts:['medium','high'],input_modalities:['text']}]},modelForRole(),{images:true}),/IMAGE_UNAVAILABLE/);
   await assert.rejects(runCodex({...f.options,usageProvider:async()=>({inference_allowed:false})}),/RESERVE_REACHED/);assert.equal(f.seen.calls,0);
 });
 test('reserve remains30 percent with5 percent start buffer and no reset credit consumption',()=>{

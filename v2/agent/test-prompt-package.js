@@ -123,7 +123,7 @@ test('actual assembled policy includes selective phases and current model roles 
   assert.match(bundle.text, /Rotation.*Euphoria.*Fatigue.*Cooked/s);
   assert.match(bundle.text, /If there is no visible supported edge.*do not trade/s);
   assert.match(bundle.text, /sector phase, exact-token lifecycle and audience discovery/);
-  assert.match(bundle.text, /GPT-6\.1 Sol at medium/);
+  assert.match(bundle.text, /GPT-6 Luna at high/);
   assert.doesNotMatch(bundle.text, /intended roles are GPT-6\.1 Terra/);
   assert.match(bundle.text, /no compulsory strategy field names/);
   assert.match(bundle.text, /Search snippets remain snippets/);

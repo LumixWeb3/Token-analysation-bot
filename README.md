@@ -65,7 +65,7 @@ npm run check:recal
 npm run check:main
 ```
 
-These commands consume subscription usage. Each model must call the diagnostic `discovery_read` tool and return its marker with `trading_enabled` set to `false`. The main model also performs one official-documentation web search. The main model defaults to `gpt-6.1-sol` at medium effort and the review model to `gpt-6-luna` at medium effort. Unavailable models or the usage-reserve gate produce an explicit failure.
+These commands consume subscription usage. Each model must call the diagnostic `discovery_read` tool and return its marker with `trading_enabled` set to `false`. The main model also performs one official-documentation web search. The main model defaults to `gpt-6-luna` at high effort and the review model to `gpt-6-luna` at medium effort. Unavailable models or the usage-reserve gate produce an explicit failure.
 
 ### 5. Create your local source logins
 
