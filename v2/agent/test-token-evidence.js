@@ -54,6 +54,45 @@ test('snapshot tampering, cross-chain chart and stale or future collection are r
   const {id,...body}=e;body.chart.coin_id=RH;const wrong={id:hash(body),...body};
   assert.throws(()=>tokenForPacket(wrong,[source()],NOW),/CHART_IDENTITY/);
 });
+
+test('a snapshot aging during research remains lossless historical evidence with current qualification withdrawn',async()=>{
+  const e=await evidence(),original=JSON.stringify(e),later=NOW+300001;
+  const result=tokenForPacket(e,[source()],later,{allowHistorical:true});
+  assert.equal(result.packet.freshness_status,'HISTORICAL_REQUIRES_REFRESH');
+  assert.equal(result.packet.capture_age_ms,300001);
+  assert.equal(result.packet.collected_at,e.collected_at);
+  assert.equal(result.packet.evidence_id,e.id);
+  assert.deepEqual(result.packet.token,e.token);
+  assert.equal(result.packet.research_ready,false);
+  assert.equal(result.packet.execution_qualified,false);
+  assert(result.packet.reasons.includes('STALE_TOKEN_SNAPSHOT_REQUIRES_REFRESH'));
+  assert.equal(result.images[0].base64,e.chart.base64);
+  assert.equal(JSON.stringify(e),original);
+  assert.throws(()=>tokenForPacket(e,[source()],later),/TIME/);
+  assert.throws(()=>tokenForPacket(e,[source()],NOW-1,{allowHistorical:true}),/TIME/);
+  const modified=clone(e);modified.token.price_usd=99;
+  assert.throws(()=>tokenForPacket(modified,[source()],later,{allowHistorical:true}),/INTEGRITY/);
+});
+
+test('research packet retains expired token and chart without admitting them as current citations',async()=>{
+  const {FeedBook,SCOPE}=require('../market/network-feed');
+  const fixture=require('../market/fixtures/gmgn-network-2026-10-27.json');
+  const {packetFor,sourceCatalogue,validateReview}=require('./research-host');
+  const e=await evidence(),later=NOW+300001,book=new FeedBook({now:()=>later});
+  for(const feed of ['migrated','trending']){
+    assert(book.snapshot(feed,fixture[feed],SCOPE[feed]).accepted);book.connection(feed,true);
+  }
+  const packet=packetFor(book,{version:0,watches:[],reviewed_coin_ids:[]},[source()],[e]);
+  const token=packet.token_research[0];
+  assert.equal(token.freshness_status,'HISTORICAL_REQUIRES_REFRESH');
+  assert.equal(token.research_ready,false);
+  assert.deepEqual(token.token,e.token);
+  assert.equal(token.chart.sha256,e.chart.sha256);
+  assert.equal(sourceCatalogue(packet,later).find(s=>s.id===e.id).qualified,false);
+  assert.throws(()=>validateReview({notes:'Historical snapshot only.',reviewed_coin_ids:[],cited_source_ids:[e.id],
+    strategy:{operation:'NOTE',markdown:'Unsupported current claim.'},watches:[],research_requests:[],next_review_at:null},packet,{now:later}),/UNVERIFIED_SOURCE_CITATION/);
+  assert.equal(packet.market.groups.length,4);
+});
 test('missing optional depth stays explicit; missing core fields, chart or linked X prevents complete initial research',async()=>{
   const p=tokenForPacket(await evidence(SOL,{price_usd:null}, {noChart:true}),[],NOW).packet;
   assert.equal(p.research_ready,false);assert.deepEqual(p.reasons,['MISSING:price_usd','LINKED_X_UNVERIFIED','CHART_UNVERIFIED']);

@@ -121,15 +121,17 @@ async function collectTokenFromPage({page,coinId,now=()=>Date.now(),readData,rea
       note:'Summary percentages and developer counts do not establish full wallet history, popular-KOL conviction or developer reputation.'}};
   return{id:hash(body),...body};
 }
-function tokenForPacket(evidence,sources=[],now=Date.now()){
+function tokenForPacket(evidence,sources=[],now=Date.now(),{allowHistorical=false}={}){
   const {id,...body}=evidence;
   if(body.schema!=='alphahands.token-evidence.v2'||hash(body)!==id)throw Error('TOKEN_EVIDENCE_INTEGRITY');
   const expected=coinIdentity(body.coin_id);validatePageUrl(body.source_url,expected);
   validatePageUrl(body.token.source_url,expected);
   if(body.token.coin_id!==expected.coin_id||body.token.chain!==expected.chain||body.token.address!==expected.address)throw Error('TOKEN_EVIDENCE_IDENTITY');
   const started=stamp(body.capture_started_at),completed=stamp(body.collected_at),dataAt=stamp(body.token.scraped_at);
-  if(!Number.isFinite(started)||!Number.isFinite(completed)||started>completed||completed>now||now-completed>MAX_CAPTURE_AGE_MS||
+  if(!Number.isFinite(started)||!Number.isFinite(completed)||started>completed||completed>now||
     !Number.isFinite(dataAt)||dataAt<started||dataAt>completed)throw Error('TOKEN_EVIDENCE_STALE_OR_INVALID_TIME');
+  const captureAge=now-completed,fresh=captureAge<=MAX_CAPTURE_AGE_MS;
+  if(!fresh&&!allowHistorical)throw Error('TOKEN_EVIDENCE_STALE_OR_INVALID_TIME');
   const missing=[],invalid=[];
   for(const field of CORE){const value=body.token[field];if(value===null||value===undefined)missing.push(field);else if(typeof value!=='number'||!Number.isFinite(value)||value<0)invalid.push(field);}
   if(invalid.length)throw Error('TOKEN_NUMERIC_FIELDS_INVALID:'+invalid.join(','));
@@ -150,6 +152,7 @@ function tokenForPacket(evidence,sources=[],now=Date.now()){
   const linkedSources=checkedSources.filter(s=>s.request.kind==='x_link'&&linked.some(l=>sameXSource(l,s.exact_source)||
     (l.type==='PROFILE'&&s.exact_source?.type==='STATUS'&&l.author.toLowerCase()===s.exact_source.author?.toLowerCase())));
   const reasons=missing.map(f=>'MISSING:'+f);
+  if(!fresh)reasons.push('STALE_TOKEN_SNAPSHOT_REQUIRES_REFRESH');
   if(!linkedSources.some(s=>s.qualified))reasons.push('LINKED_X_UNVERIFIED');
   let chart=clone(body.chart),images=[];
   if(chart.ok){
@@ -162,6 +165,7 @@ function tokenForPacket(evidence,sources=[],now=Date.now()){
     images=[{coin_id:expected.coin_id,sha256:png.sha256,content_type:'image/png',base64:body.chart.base64}];
   }else reasons.push('CHART_UNVERIFIED');
   return{packet:{evidence_id:id,coin_id:expected.coin_id,source_url:expected.url,capture_started_at:body.capture_started_at,collected_at:body.collected_at,
+    capture_age_ms:captureAge,freshness_status:fresh?'FRESH':'HISTORICAL_REQUIRES_REFRESH',
     token:clone(body.token),coverage:{...clone(body.coverage),holder_top20:network.holder_top20.some(h=>h.qualified)?'QUALIFIED_OBSERVED_TOP20':network.holder_top20.length?'UNVERIFIED_TOP20':'NOT_COLLECTED'},network,chart,source_ids:linkedSources.map(s=>s.id),
     research_ready:reasons.length===0,readiness_scope:'CORE_MARKET_CHART_LINKED_X_REVIEW',deep_research_complete:false,
     reasons,execution_qualified:false},images,sources:checkedSources};

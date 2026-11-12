@@ -81,7 +81,9 @@ function packetFor(book,state,sources=[],tokenEvidence=[],{capabilities={},reque
   const coins=new Set(positionOnly?[]:market.groups.flatMap(g=>g.rows.map(r=>r.coin_id)));
   const consumedAt=Date.parse(market.recorded_at);
   const checkedSources=sources.map(s=>checkedSource(s,consumedAt));
-  const tokens=tokenEvidence.map(e=>tokenForPacket(e,checkedSources,consumedAt).packet);
+  // A source can age during a research turn. Retain its exact historical values
+  // while withdrawing current qualification instead of aborting all research.
+  const tokens=tokenEvidence.map(e=>tokenForPacket(e,checkedSources,consumedAt,{allowHistorical:true}).packet);
   if(new Set(tokens.map(t=>t.coin_id)).size!==tokens.length)throw Error('DUPLICATE_TOKEN_RESEARCH_EVIDENCE');
   const compact=clone(market);for(const g of compact.groups)for(const r of g.rows)delete r.raw;
   if(positionOnly){compact.suppressed_discovery_groups=compact.groups.map(g=>({feed:g.feed,chain:g.chain,rows:g.rows.length}));compact.groups=[];}
@@ -303,7 +305,7 @@ async function runResearch({book,stateDir,execute=runCodex,source=researchSource
       if(runtime)packet.controls.agent=clone(runtime);
       if(progress.at(-1)?.rejection)packet.controls.validation_feedback=clone(progress.at(-1).rejection);
       packet.available_token_evidence=tokens.map(e=>({coin_id:e.coin_id,evidence_id:e.id,collected_at:e.collected_at,selected:active.includes(e)}));
-      const images=active.flatMap(e=>tokenForPacket(e,sources,Date.parse(packet.market.recorded_at)).images);
+      const images=active.flatMap(e=>tokenForPacket(e,sources,Date.parse(packet.market.recorded_at),{allowHistorical:true}).images);
       let output;
       try{output=await execute({policy:policy.text,packet,schema:responseSchema,images});}
       catch(error){
@@ -352,7 +354,7 @@ async function runResearch({book,stateDir,execute=runCodex,source=researchSource
       if(response.research_requests.length){
         if(step+1===maxRounds){
           // Only ordinary round exhaustion produces a resumable checkpoint.
-          for(const e of tokens)tokenForPacket(e,sources,Date.parse(packet.market.recorded_at));
+          for(const e of tokens)tokenForPacket(e,sources,Date.parse(packet.market.recorded_at),{allowHistorical:true});
           checkpoint.save(stateDir,{schema:'alphahands.research-pending.v1',phase:'PAUSED',run_id:runId,recorded_at:packet.market.recorded_at,next_round:round+1,
             base_state_sha256:baseHash,base_version:accepted.version,policy_sha256:policyHash,response_schema_sha256:schemaHash,cohort_binding:binding,
             state,sources,tokens,request_results:requestResults,progress,pending_requests:response.research_requests});
