@@ -32,7 +32,7 @@ test('explicit usage waiver is bound to one reset window and preserves hard avai
   const authorization={schema:'alphahands.usage-authorization.v1',owner_approved:true,window_resets_at:resetsAt,start_before_percent:95};
   assert.equal(quotaFromResult(result).inference_allowed,false);
   assert.equal(quotaFromResult(result,{authorization}).inference_allowed,true);
-  assert.equal(quotaFromResult(result,{authorization:{...authorization,window_resets_at:resetsAt+1}}).inference_allowed,false);
+  assert.equal(quotaFromResult(result,{authorization:{...authorization,window_resets_at:resetsAt+2}}).inference_allowed,false);
   assert.equal(quotaFromResult({...result,ordinaryUsageAllowed:false},{authorization}).inference_allowed,false);
   result.rateLimits.primary.usedPercent=95;
   assert.equal(quotaFromResult(result,{authorization}).inference_allowed,false);

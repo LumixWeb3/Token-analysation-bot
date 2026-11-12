@@ -163,7 +163,7 @@ test('explicit window authorization supports a fifteen percent reserve and expir
   usage.rateLimits.primary.usedPercent=85;
   assert.equal(quotaFromResult(usage,{authorization}).inference_allowed,false);
   usage.rateLimits.primary.usedPercent=70;
-  authorization.window_resets_at--;
+  authorization.window_resets_at-=2;
   assert.equal(quotaFromResult(usage,{authorization}).inference_allowed,false);
 });
 test('actual exact-hash PNG bytes reach SDK as local images, with identity manifest',async t=>{

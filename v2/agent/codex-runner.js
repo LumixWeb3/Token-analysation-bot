@@ -13,7 +13,11 @@ function quotaFromResult(result,{authorization=null}={}){
   const windows=[bucket?.primary,bucket?.secondary].filter(Boolean),primary=windows.find(w=>w.windowDurationMins===300);
   if(!primary||typeof primary.usedPercent!=='number'||!Number.isFinite(primary.usedPercent)||primary.usedPercent<0||primary.usedPercent>100)throw Error('FIVE_HOUR_USAGE_UNAVAILABLE');
   const waived=authorization?.schema==='alphahands.usage-authorization.v1'&&authorization.owner_approved===true&&
-    authorization.window_resets_at===primary.resetsAt&&[80,85,95].includes(authorization.start_before_percent)&&Date.now()<primary.resetsAt*1000;
+    // The control service rounds the same reset boundary to adjacent seconds.
+    Number.isSafeInteger(authorization.window_resets_at)&&Number.isSafeInteger(primary.resetsAt)&&
+    Math.abs(authorization.window_resets_at-primary.resetsAt)<=1&&
+    [80,85,95].includes(authorization.start_before_percent)&&
+    Date.now()<Math.min(authorization.window_resets_at,primary.resetsAt)*1000;
   const cutoff=waived?authorization.start_before_percent:65;
   return{observed_at:new Date().toISOString(),used_percent:primary.usedPercent,window_minutes:300,resets_at:primary.resetsAt,
     inference_allowed:primary.usedPercent<cutoff&&result?.ordinaryUsageAllowed===true&&!windows.some(w=>w.usedPercent>=100)&&!bucket.rateLimitReachedType&&bucket.spendControlReached!==true,

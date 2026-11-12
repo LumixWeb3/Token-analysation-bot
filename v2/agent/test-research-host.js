@@ -180,6 +180,22 @@ test('owner fifteen-percent reserve retains a five-percent start buffer and expi
   const allowed=quotaFromResult(result,{authorization});
   assert.equal(allowed.inference_allowed,true);assert.equal(allowed.reserve_percent,15);assert.equal(allowed.start_buffer_percent,5);
   result.rateLimits.primary.usedPercent=80;assert.equal(quotaFromResult(result,{authorization}).inference_allowed,false);
-  authorization.window_resets_at++;const expired=quotaFromResult(result,{authorization});
+  authorization.window_resets_at+=2;const expired=quotaFromResult(result,{authorization});
   assert.equal(expired.owner_window_waiver,false);assert.equal(expired.reserve_percent,30);assert.equal(expired.inference_allowed,false);
+});
+
+test('same usage window accepts observed one-second rounding only before both reset boundaries',()=>{
+  const reset=Math.floor(Date.now()/1000)+3600;
+  const result={ordinaryUsageAllowed:true,rateLimits:{primary:{windowDurationMins:300,usedPercent:70,resetsAt:reset}}};
+  const authorization={schema:'alphahands.usage-authorization.v1',owner_approved:true,window_resets_at:reset,start_before_percent:80};
+  for(const difference of [-1,0,1]){
+    authorization.window_resets_at=reset+difference;
+    const checked=quotaFromResult(result,{authorization});assert.equal(checked.inference_allowed,true);assert.equal(checked.reserve_percent,15);
+  }
+  for(const difference of [-18000,-2,2,18000]){
+    authorization.window_resets_at=reset+difference;assert.equal(quotaFromResult(result,{authorization}).inference_allowed,false);
+  }
+  result.rateLimits.primary.resetsAt=Math.floor(Date.now()/1000)-1;
+  authorization.window_resets_at=result.rateLimits.primary.resetsAt+1;
+  assert.equal(quotaFromResult(result,{authorization}).owner_window_waiver,false);
 });
