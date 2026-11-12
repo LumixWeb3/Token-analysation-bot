@@ -93,6 +93,22 @@ test('research packet retains expired token and chart without admitting them as 
     strategy:{operation:'NOTE',markdown:'Unsupported current claim.'},watches:[],research_requests:[],next_review_at:null},packet,{now:later}),/UNVERIFIED_SOURCE_CITATION/);
   assert.equal(packet.market.groups.length,4);
 });
+
+test('superseded same-turn input citations remain known with their actual age and identity',async()=>{
+  const {sourceCatalogue,validateReview}=require('./research-host');
+  const old=tokenForPacket(await evidence(SOL),[source()],NOW).packet;
+  const selected=tokenForPacket(await evidence(RH),[source()],NOW).packet;
+  const packet={controls:{required_initial_coin_ids:[SOL,RH]},state:{watches:[],reviewed_coin_ids:[]},
+    market:{research_ready:true,recorded_at:iso(NOW),groups:[]},sources:[],token_research:[selected],prior_token_research:[old]};
+  assert.equal(sourceCatalogue(packet,NOW).find(s=>s.id===old.evidence_id).qualified,true);
+  const review={notes:'Cite the original same-turn input.',reviewed_coin_ids:[],cited_source_ids:[old.evidence_id],
+    strategy:{operation:'NOTE',markdown:'Source-backed research.'},watches:[],research_requests:[],next_review_at:null};
+  assert.equal(validateReview(review,packet,{now:NOW}),review);
+  assert.equal(sourceCatalogue(packet,NOW+300001).find(s=>s.id===old.evidence_id).qualified,false);
+  assert.throws(()=>validateReview(review,packet,{now:NOW+300001}),/UNVERIFIED_SOURCE_CITATION/);
+  assert.throws(()=>validateReview({...review,cited_source_ids:['f'.repeat(64)]},packet,{now:NOW}),/UNVERIFIED_SOURCE_CITATION/);
+  assert.equal(old.collected_at,iso(NOW));
+});
 test('missing optional depth stays explicit; missing core fields, chart or linked X prevents complete initial research',async()=>{
   const p=tokenForPacket(await evidence(SOL,{price_usd:null}, {noChart:true}),[],NOW).packet;
   assert.equal(p.research_ready,false);assert.deepEqual(p.reasons,['MISSING:price_usd','LINKED_X_UNVERIFIED','CHART_UNVERIFIED']);

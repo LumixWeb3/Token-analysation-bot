@@ -62,7 +62,7 @@ function sourceCatalogue(packet,now=Date.now()){
         scope:'Observed discovery fields only. This does not qualify linked X, a chart or an execution quote.'});
     }
   refs.push(...feedRefs.values());
-  for(const token of packet.token_research??[]){
+  for(const token of [...(packet.token_research??[]),...(packet.prior_token_research??[])]){
     const at=stamp(token.collected_at),fresh=Number.isFinite(at)&&at<=now&&now-at<=MAX_CAPTURE_AGE_MS;
     refs.push({id:token.evidence_id,kind:'GMGN_TOKEN_SNAPSHOT',coin_id:token.coin_id,qualified:fresh,
       status:fresh?'IDENTITY_VALIDATED_SNAPSHOT_WITH_EXPLICIT_COVERAGE':'UNVERIFIED_TIME'});
@@ -323,6 +323,13 @@ async function runResearch({book,stateDir,execute=runCodex,source=researchSource
       for(const collected of direct){if((collected.sources?.length??0)||(collected.token_evidence?.length??0))acceptCollected(collected,collected.request);}
       // Only host-owned tool receipts join the packet, never model-authored evidence.
       const finalPacket=makePacket(book,state,sources,tokens.slice(-1),{capabilities:broker?.capabilities??{},requestResults,progress});
+      // A tool can replace the selected snapshot while the model still cites
+      // evidence from its original input. Preserve that exact input provenance
+      // for this review and recompute its qualification at consumption time.
+      const currentTokenIds=new Set(finalPacket.token_research.map(e=>e.evidence_id));
+      finalPacket.prior_token_research=active.filter(e=>!currentTokenIds.has(e.id))
+        .map(e=>tokenForPacket(e,sources,Date.parse(finalPacket.market.recorded_at),{allowHistorical:true}).packet);
+      finalPacket.source_catalogue=sourceCatalogue(finalPacket,Date.parse(finalPacket.market.recorded_at));
       Object.assign(finalPacket.controls,packet.controls);finalPacket.available_token_evidence=tokens.map(e=>({coin_id:e.coin_id,evidence_id:e.id,collected_at:e.collected_at,selected:e===tokens.at(-1)}));
       let response;
       try{response=validateReview(JSON.parse(output.text),finalPacket);}
