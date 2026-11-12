@@ -206,3 +206,9 @@ Substantive SDK events refresh the idle watchdog, including progress following
 native conversation compaction. Caller cancellation and the absolute deadline
 remain effective. Failed-turn and health records expose elapsed time, idle time
 and the last SDK event type. Source freshness and paper-entry gates still apply.
+
+Citations use the current packet's source catalogue. Older conversation IDs stay
+historical. A citation error can receive one explicit correction within the
+existing round allowance. The rejected output is preserved and changes no
+coverage, requests, watches, strategy or account state. Every corrected proposal
+passes the original validation rules before acceptance.

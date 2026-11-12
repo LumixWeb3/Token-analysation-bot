@@ -106,3 +106,31 @@ test('intermediate strategy and watch proposals retain their complete response a
   assert.equal(result.status,'COMMITTED');assert.equal(readState(stateDir).strategy_status,'RESEARCHED');
   assert.equal(readState(stateDir).watches.length,1);assert.equal(readState(stateDir).version,1);
 });
+
+test('stale conversation citation gets one explicit correction with zero rejected-state adoption',async t=>{
+  const {runResearch}=require('./research-host');
+  const stateDir=directory(t);let calls=0;
+  const result=await runResearch({book:book(),stateDir,execute:async({packet})=>{
+    calls++;
+    if(calls===1)return{text:JSON.stringify({...reply(),cited_source_ids:['old-conversation-source'],
+      reviewed_coin_ids:packet.controls.required_initial_coin_ids,strategy:{operation:'REVISE',markdown:'Rejected candidate'},
+      research_requests:[{kind:'x_search',input:'Must not collect rejected request',reason:'Rejected proposal'}]})};
+    assert.equal(readState(stateDir).version,0);assert.deepEqual(packet.state.reviewed_coin_ids,[]);
+    assert.equal(packet.controls.validation_feedback.code,'UNVERIFIED_SOURCE_CITATION');
+    assert.equal(packet.controls.review_protocol.previous_review.status,'REJECTED_NO_STATE_CHANGE');
+    assert.equal(packet.research_progress[0].response.strategy.markdown,'Rejected candidate');
+    return{text:JSON.stringify({...reply(),reviewed_coin_ids:packet.controls.required_initial_coin_ids,
+      cited_source_ids:[packet.source_catalogue.find(s=>s.qualified).id],strategy:{operation:'REVISE',markdown:'Current source-backed candidate'}})};
+  }});
+  assert.equal(calls,2);assert.equal(result.status,'COMMITTED');assert.equal(readState(stateDir).strategy,'Current source-backed candidate');
+  const lines=fs.readFileSync(path.join(stateDir,'turns.jsonl'),'utf8').trim().split('\n').map(s=>JSON.parse(s));
+  assert.equal(lines[0].status,'REJECTED_REVIEW');assert.equal(JSON.parse(lines[0].raw_response).cited_source_ids[0],'old-conversation-source');
+});
+
+test('repeated unknown citations exhaust the single correction and leave accepted state untouched',async t=>{
+  const {runResearch}=require('./research-host');
+  const stateDir=directory(t);let calls=0;
+  await assert.rejects(runResearch({book:book(),stateDir,maxRounds:3,execute:async()=>{calls++;
+    return{text:JSON.stringify({...reply(),cited_source_ids:['still-unknown']})};}}),/UNVERIFIED_SOURCE_CITATION/);
+  assert.equal(calls,2);assert.equal(readState(stateDir).version,0);assert(!fs.existsSync(path.join(stateDir,'research.lock')));
+});
