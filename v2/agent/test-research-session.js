@@ -134,3 +134,29 @@ test('repeated unknown citations exhaust the single correction and leave accepte
     return{text:JSON.stringify({...reply(),cited_source_ids:['still-unknown']})};}}),/UNVERIFIED_SOURCE_CITATION/);
   assert.equal(calls,2);assert.equal(readState(stateDir).version,0);assert(!fs.existsSync(path.join(stateDir,'research.lock')));
 });
+
+test('six research requests receive one bounded correction without collecting rejected requests',async t=>{
+  const {runResearch}=require('./research-host');
+  const stateDir=directory(t);let calls=0,collections=0;
+  const result=await runResearch({book:book(),stateDir,broker:{capabilities:{},collect:async()=>{collections++;throw Error('REJECTED_REQUEST_COLLECTED');}},
+    execute:async({packet})=>{
+      calls++;assert.equal(packet.controls.max_research_requests_per_round,4);
+      if(calls===1)return{text:JSON.stringify({...reply(),reviewed_coin_ids:packet.controls.required_initial_coin_ids,
+        research_requests:Array.from({length:6},(_,i)=>({kind:'x_search',input:'query '+i,reason:'Leader research'}))})};
+      assert.equal(packet.controls.validation_feedback.code,'RESEARCH_REQUEST_LIMIT');
+      assert.deepEqual(packet.state.reviewed_coin_ids,[]);assert.equal(readState(stateDir).version,0);
+      assert.equal(packet.research_progress[0].response.research_requests.length,6);
+      return{text:JSON.stringify(reply())};
+    }});
+  assert.equal(calls,2);assert.equal(collections,0);assert.equal(result.status,'COMMITTED');
+});
+
+test('request-limit and citation failures share one correction budget',async t=>{
+  const {runResearch}=require('./research-host');
+  const stateDir=directory(t);let calls=0;
+  await assert.rejects(runResearch({book:book(),stateDir,execute:async()=>{
+    calls++;return{text:JSON.stringify(calls===1?{...reply(),research_requests:Array.from({length:6},()=>({kind:'x_search',input:'query',reason:'Research'}))}:
+      {...reply(),cited_source_ids:['unknown']})};
+  }}),/UNVERIFIED_SOURCE_CITATION/);
+  assert.equal(calls,2);assert.equal(readState(stateDir).version,0);
+});

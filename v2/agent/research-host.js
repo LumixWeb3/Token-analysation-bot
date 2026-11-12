@@ -222,7 +222,7 @@ async function runResearch({book,stateDir,execute=runCodex,source=researchSource
     const accepted=readState(stateDir),policy=buildPrompt();
     const hasPending=checkpoint.exists(stateDir);if(hasPending&&!resumeRunId)throw Error('RESEARCH_RESUME_REQUIRED');
     let state=clone(accepted),sources=clone(initialSources),tokens=clone(tokenEvidence),requestResults=[],progress=[],runId=crypto.randomUUID(),startRound=0,pending=[];
-    let citationCorrectionUsed=false;
+    let validationCorrectionUsed=false;
     // Capture the declared cohort once; metric/rank/receipt changes do not alter it.
     const responseSchema=accountState?{...schema,properties:{...schema.properties,paper_action:{anyOf:[{type:'null'},actionSchema]}},required:[...schema.required,'paper_action']}:schema;
     const makePacket=(...args)=>{const [b,s,src=[],tok=[],options={}]=args;return packetFor(b,s,src,tok,{...options,accountState});};
@@ -241,7 +241,7 @@ async function runResearch({book,stateDir,execute=runCodex,source=researchSource
         for(const s of saved.sources){const checked=checkedSource(s,now);if(!Number.isFinite(checked.capture_age_ms)||checked.capture_age_ms<0||checked.capture_age_ms>MAX_CAPTURE_AGE_MS)throw Error('STALE_SOURCE');}
         for(const e of saved.tokens)tokenForPacket(e,saved.sources,now);
         state=saved.state;sources=saved.sources;tokens=saved.tokens;requestResults=saved.request_results;progress=saved.progress;runId=saved.run_id;startRound=saved.next_round;pending=saved.pending_requests;
-        citationCorrectionUsed=progress.some(p=>p.rejection?.code==='UNVERIFIED_SOURCE_CITATION');
+        validationCorrectionUsed=progress.some(p=>p.rejection);
         if(state.version!==accepted.version||hash({...state,reviewed_coin_ids:accepted.reviewed_coin_ids})!==baseHash)throw Error('STATE_CHANGED');
         const known=new Set([...initialPacket.controls.required_initial_coin_ids,...accepted.watches.map(w=>w.coin_id)]);
         if(progress.length!==startRound||progress.some((p,i)=>p.round!==i||!Number.isFinite(Date.parse(p.recorded_at))||!Array.isArray(p.reviewed_coin_ids)||p.reviewed_coin_ids.some(id=>!known.has(id))))throw Error('PROGRESS_INVALID');
@@ -298,6 +298,8 @@ async function runResearch({book,stateDir,execute=runCodex,source=researchSource
       const round=startRound+step,active=tokens.slice(-1);
       const packet=makePacket(book,state,sources,active,{capabilities:broker?.capabilities??{},requestResults,progress});packet.controls.run_id=runId;packet.controls.round=round;packet.controls.rounds_remaining=maxRounds-step;
       packet.controls.max_token_research_requests_per_round=1;
+      packet.controls.max_research_requests_per_round=4;
+      packet.controls.research_request_budget='Return at most four research_requests in total, including at most one gmgn_token. Prioritize the next useful batch and retain remaining research questions in notes for later rounds.';
       if(runtime)packet.controls.agent=clone(runtime);
       if(progress.at(-1)?.rejection)packet.controls.validation_feedback=clone(progress.at(-1).rejection);
       packet.available_token_evidence=tokens.map(e=>({coin_id:e.coin_id,evidence_id:e.id,collected_at:e.collected_at,selected:active.includes(e)}));
@@ -327,12 +329,17 @@ async function runResearch({book,stateDir,execute=runCodex,source=researchSource
           validation_error:/^[A-Z][A-Z0-9_:,]+$/.test(error.message)?error.message:'RESEARCH_RESPONSE_INVALID',input_packet:packet,packet:finalPacket,
           raw_response:output.text,model:output.model??null,input_transport:output.input_transport??null,cache:output.cache??null,
           model_execution:output.execution??null,model_audit:storedAudit({items:output.items??[],native_search:output.native_search??[],sdk_events:output.sdk_events??[]}),policy_manifest:policy.manifest})+'\n');
-        if(error.message==='UNVERIFIED_SOURCE_CITATION'&&!citationCorrectionUsed&&step+1<maxRounds){
-          citationCorrectionUsed=true;
+        const correctionInstruction={
+          UNVERIFIED_SOURCE_CITATION:'Correct the complete review using cited_source_ids from the current source_catalogue. Preserve source times and uncertainty. REVISE/NOTE require a currently qualified citation.',
+          RESEARCH_REQUEST_LIMIT:'Correct the complete review with at most four research_requests total. Prioritize a useful batch and preserve remaining research questions in notes. No rejected request was collected.',
+          ONE_TOKEN_RESEARCH_REQUEST_PER_ROUND:'Correct the complete review with at most one gmgn_token request and four requests total. Preserve remaining research questions in notes. No rejected request was collected.'
+        }[error.message];
+        if(correctionInstruction&&!validationCorrectionUsed&&step+1<maxRounds){
+          validationCorrectionUsed=true;
           progress.push({round,recorded_at:packet.market.recorded_at,notes:'Host rejected this review. No strategy, watch, coverage or paper action was accepted.',
             reviewed_coin_ids:[],research_requests:[],response:JSON.parse(output.text),
-            rejection:{code:'UNVERIFIED_SOURCE_CITATION',accepted_state_version:accepted.version,
-              instruction:'Correct the complete review using cited_source_ids from the current source_catalogue. Preserve source times and uncertainty. REVISE/NOTE require a currently qualified citation. The rejected response changed no accepted state or coverage. Recheck the current packet before proposing any action.'}});
+            rejection:{code:error.message,accepted_state_version:accepted.version,
+              instruction:correctionInstruction+' The rejected response changed no accepted state or coverage. Recheck the current packet before proposing any action.'}});
           continue;
         }
         throw error;
