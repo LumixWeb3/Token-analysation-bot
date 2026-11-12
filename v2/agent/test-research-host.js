@@ -16,6 +16,14 @@ test('owner-accepted feed scope admits packets, while unavailable transport bloc
   const d=directory(t),book=new FeedBook({now:()=>Date.parse('2026-10-27T12:40:00Z')});
   for(const feed of ['migrated','trending']){assert(book.snapshot(feed,fixture[feed],SCOPE[feed]).accepted);book.connection(feed,true);}
   assert(book.view().research_ready);assert.equal(packetFor(book,readState(d)).market.ui_equivalence,'OWNER_ACCEPTED_BOUNDED_DIFFERENCE');
+  const guidance=packetFor(book,readState(d)).controls.leader_research;
+  assert.match(guidance.priority,/before settling or materially revising/);
+  assert.match(guidance.selection,/both enabled chains/);
+  assert.match(guidance.selection,/Feed screening alone/);
+  assert.match(guidance.investigation,/original story and primary project\/X sources/);
+  assert.match(guidance.investigation,/competing mints/);
+  assert.match(guidance.strategy,/provisional/);
+  assert.match(guidance.strategy,/paper-execution gates/);
   book.connection('trending',false);
   let calls=0;await assert.rejects(runResearch({book,stateDir:d,execute:async()=>{calls++;throw Error('MODEL_MUST_NOT_RUN');}}),/MARKET_NOT_READY/);assert.equal(calls,0);
 });
@@ -41,6 +49,8 @@ test('discovery failure permits held-position review but cannot form a new marke
   const accountState={revision:8,positions:[{coin_id:watchedCoin}]};
   const p=packetFor(book,readState(d),[],[],{accountState});
   assert.equal(p.controls.position_review_only,true);assert.equal(p.market.research_ready,false);
+  assert.match(p.controls.leader_research.priority,/Urgent held-position review takes priority/);
+  assert.match(p.controls.leader_research.priority,/do not infer current market leaders/);
   assert.equal(p.market.groups.length,0);assert.deepEqual(p.controls.required_initial_coin_ids,[]);
   assert(p.controls.allowed_research_coin_ids.includes(watchedCoin));
   const r=response();r.paper_action={action:'EXIT',coin_id:watchedCoin,expected_account_revision:8,percent:100,entry_low_mc:null,entry_high_mc:null,reason:'Fixture reduction'};
@@ -161,4 +171,15 @@ test('quota uses the five-hour window and reserve, never weekly availability or 
   for(const usedPercent of [-1,101,NaN]){result.rateLimits.secondary.usedPercent=usedPercent;assert.throws(()=>quotaFromResult(result),/USAGE_UNAVAILABLE/);}
   result.rateLimits.secondary.usedPercent=10;result.ordinaryUsageAllowed=false;assert(!quotaFromResult(result).inference_allowed);
   await assert.rejects(runCodex({usageProvider:async()=>({inference_allowed:false})}),/RESERVE_REACHED/);
+});
+
+test('owner fifteen-percent reserve retains a five-percent start buffer and expires with its exact window',()=>{
+  const resetsAt=Math.floor(Date.now()/1000)+3600;
+  const result={ordinaryUsageAllowed:true,rateLimits:{primary:{windowDurationMins:300,usedPercent:79,resetsAt}}};
+  const authorization={schema:'alphahands.usage-authorization.v1',owner_approved:true,window_resets_at:resetsAt,start_before_percent:80};
+  const allowed=quotaFromResult(result,{authorization});
+  assert.equal(allowed.inference_allowed,true);assert.equal(allowed.reserve_percent,15);assert.equal(allowed.start_buffer_percent,5);
+  result.rateLimits.primary.usedPercent=80;assert.equal(quotaFromResult(result,{authorization}).inference_allowed,false);
+  authorization.window_resets_at++;const expired=quotaFromResult(result,{authorization});
+  assert.equal(expired.owner_window_waiver,false);assert.equal(expired.reserve_percent,30);assert.equal(expired.inference_allowed,false);
 });

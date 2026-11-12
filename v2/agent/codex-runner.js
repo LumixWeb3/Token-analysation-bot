@@ -13,11 +13,11 @@ function quotaFromResult(result,{authorization=null}={}){
   const windows=[bucket?.primary,bucket?.secondary].filter(Boolean),primary=windows.find(w=>w.windowDurationMins===300);
   if(!primary||typeof primary.usedPercent!=='number'||!Number.isFinite(primary.usedPercent)||primary.usedPercent<0||primary.usedPercent>100)throw Error('FIVE_HOUR_USAGE_UNAVAILABLE');
   const waived=authorization?.schema==='alphahands.usage-authorization.v1'&&authorization.owner_approved===true&&
-    authorization.window_resets_at===primary.resetsAt&&[85,95].includes(authorization.start_before_percent)&&Date.now()<primary.resetsAt*1000;
+    authorization.window_resets_at===primary.resetsAt&&[80,85,95].includes(authorization.start_before_percent)&&Date.now()<primary.resetsAt*1000;
   const cutoff=waived?authorization.start_before_percent:65;
   return{observed_at:new Date().toISOString(),used_percent:primary.usedPercent,window_minutes:300,resets_at:primary.resetsAt,
     inference_allowed:primary.usedPercent<cutoff&&result?.ordinaryUsageAllowed===true&&!windows.some(w=>w.usedPercent>=100)&&!bucket.rateLimitReachedType&&bucket.spendControlReached!==true,
-    reserve_percent:waived?100-cutoff:30,start_buffer_percent:waived?0:5,owner_window_waiver:waived};
+    reserve_percent:waived?(cutoff===80?15:100-cutoff):30,start_buffer_percent:waived?(cutoff===80?5:0):5,owner_window_waiver:waived};
 }
 async function readUsage(options={}){return quotaFromResult(await controlRead(options),{authorization:options.authorization});}
 function validateImageInputs(packet,images=[]){
