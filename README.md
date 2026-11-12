@@ -194,3 +194,9 @@ Intermediate reviews explicitly report pending proposal status. Their complete
 responses remain in progress/checkpoints. The agent can finish a bounded working
 strategy by returning its final proposals with no immediate research requests.
 Decision-critical unresolved research and paper-entry gates remain enforced.
+
+SDK usage totals accumulate across a conversation. Cache reports use the exact
+increment from the previous completed baseline and retain raw cumulative totals.
+The baseline persists across restarts. A legacy thread with no saved baseline,
+reset counters or an interrupted interval carries an explicit scope/availability
+label. Earlier cache hits cannot imply a cache hit on the current review.

@@ -49,6 +49,18 @@ function abortable(work,signal){
     Promise.resolve().then(work).then(resolve,reject).finally(()=>signal.removeEventListener('abort',abort));
   });
 }
+function usageInterval(current,previous,{resumed=false,uncertain=false}={}){
+  const keys=['input_tokens','cached_input_tokens','output_tokens'];
+  const valid=value=>value&&keys.every(key=>Number.isSafeInteger(value[key])&&value[key]>=0);
+  if(!valid(current))return{scope:'UNAVAILABLE',reason:'SDK_USAGE_FIELDS_MISSING',tokens:null};
+  if(!previous&&resumed)return{scope:'UNAVAILABLE',reason:'COMPLETED_BASELINE_UNAVAILABLE',tokens:null};
+  const baseline=previous??Object.fromEntries(keys.map(key=>[key,0]));
+  if(!valid(baseline))return{scope:'UNAVAILABLE',reason:'COMPLETED_BASELINE_INVALID',tokens:null};
+  const tokens=Object.fromEntries(keys.map(key=>[key,current[key]-baseline[key]]));
+  if(Object.values(tokens).some(value=>value<0)||tokens.cached_input_tokens>tokens.input_tokens)
+    return{scope:'UNAVAILABLE',reason:'SDK_COUNTERS_REBASED',tokens:null};
+  return{scope:uncertain?'SINCE_COMPLETION_INCLUDING_INTERRUPTION':'SDK_TURN',reason:null,tokens};
+}
 async function runCodex({policy,packet,schema,images=[],timeoutMs=180000,usageProvider=readUsage,
   availabilityProvider=readModelAvailability,clientFactory=createSdkClient,role='main',toolEndpoint,home=isolatedHome(),signal,conversation=null}={}){
   if(!Number.isInteger(timeoutMs)||timeoutMs<=0||timeoutMs>3600000)throw Error('RESEARCH_MODEL_TIMEOUT_INVALID');
@@ -108,7 +120,7 @@ async function runCodex({policy,packet,schema,images=[],timeoutMs=180000,usagePr
   const thread=conversation?.thread??(conversation?.threadId?client.resumeThread(conversation.threadId,threadOptions):client.startThread(threadOptions));
   if(conversation)Object.assign(conversation,{client,thread,directory,binding});
   const packetSha=conversation?.store?.putPacket(packet);
-  if(conversation?.store)conversation.store.save({...conversation.record,phase:'ACTIVE',binding,turns:conversation.turns??0});
+  if(conversation?.store)conversation.store.save({...conversation.record,phase:'ACTIVE',binding,turns:conversation.turns??0,usage_interval_uncertain:true});
   turnStarted=true;
   const {events}=await thread.runStreamed(input,{outputSchema:schema,signal:controller.signal});
   const audit=[],items=[];let text='',total=0,completed=false,modelUsage=null;
@@ -132,17 +144,22 @@ async function runCodex({policy,packet,schema,images=[],timeoutMs=180000,usagePr
   if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw Error('RESEARCH_RESPONSE_INVALID_JSON');
   const turn=conversation?.turns??0;
   fs.writeFileSync(path.join(directory,turn?'answer-'+turn+'.json':'answer.json'),text,{flag:'wx'});
+  const measured=usageInterval(modelUsage,conversation?.usageTotals??conversation?.record?.usage_totals??null,
+    {resumed,uncertain:conversation?.record?.usage_interval_uncertain===true});
   if(conversation){
-    conversation.turns=turn+1;conversation.previousPacket=JSON.parse(JSON.stringify(packet));
+    conversation.turns=turn+1;conversation.previousPacket=JSON.parse(JSON.stringify(packet));conversation.usageTotals=modelUsage;
     if(conversation.store){
       if(typeof thread.id!=='string'||!/^[a-zA-Z0-9_-]{1,128}$/.test(thread.id))throw Error('RESEARCH_CONVERSATION_THREAD_ID_MISSING');
-      conversation.record={...conversation.record,phase:'READY',binding,turns:conversation.turns,thread_id:thread.id,packet_sha256:packetSha};
+      conversation.record={...conversation.record,phase:'READY',binding,turns:conversation.turns,thread_id:thread.id,
+        packet_sha256:packetSha,usage_totals:modelUsage,usage_interval_uncertain:false};
       conversation.store.save(conversation.record);
     }
   }
-  const cached=Number.isFinite(modelUsage?.cached_input_tokens)?modelUsage.cached_input_tokens:null;
+  const cached=measured.tokens?.cached_input_tokens??null;
   return{text,usage_before:usage,workspace:directory,input_transport:prepared.manifest,model:{...selection,sdk_version:'0.167.0',availability},
-    usage:modelUsage,cache:{status:cached===null?'UNREPORTED':cached>0?'HIT':'MISS',cached_input_tokens:cached,input_tokens:modelUsage?.input_tokens??null,resumed,thread_id:thread.id??null},
+    usage:modelUsage,usage_scope:'CONVERSATION_TOTAL',usage_interval:measured,
+    cache:{status:cached===null?'UNREPORTED':cached>0?'HIT':'MISS',cached_input_tokens:cached,input_tokens:measured.tokens?.input_tokens??null,
+      scope:measured.scope,reason:measured.reason,conversation_totals:modelUsage,resumed,thread_id:thread.id??null},
     sdk_events:audit,items,native_search:{mode:'live',items:items.filter(i=>i.type==='web_search'),qualification:'UNVERIFIED_NATIVE_SEARCH_EVENTS'}};
   },controller.signal);}catch(error){
     controller.abort();
@@ -154,4 +171,4 @@ async function runCodex({policy,packet,schema,images=[],timeoutMs=180000,usagePr
     throw Error(code);
   }finally{clearTimeout(timer);signal?.removeEventListener('abort',cancel);}
 }
-module.exports={readUsage,quotaFromResult,runCodex,command,DISABLED,validateImageInputs,writeImageInputs,createSdkClient};
+module.exports={readUsage,quotaFromResult,runCodex,command,DISABLED,validateImageInputs,writeImageInputs,createSdkClient,usageInterval};

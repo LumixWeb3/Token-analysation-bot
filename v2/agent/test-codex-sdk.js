@@ -63,15 +63,37 @@ test('SDK accepts a large repeated packet only after exact reconstruction within
 
 test('continued SDK turns reuse one client, thread and workspace and report returned cache tokens',async t=>{
   let turns=0;
-  const f=fixture(t,{factory:()=>{const turn=turns++;return(async function*(){yield answer;yield{type:'turn.completed',usage:{input_tokens:100,cached_input_tokens:turn?80:0,output_tokens:2}};})();}});
+  const f=fixture(t,{factory:()=>{const turn=turns++;return(async function*(){yield answer;yield{type:'turn.completed',usage:{input_tokens:100*(turn+1),cached_input_tokens:turn?80:0,output_tokens:2*(turn+1)}};})();}});
   const conversation={};
   const first=await runCodex({...f.options,conversation});
   const second=await runCodex({...f.options,conversation,packet:{...f.options.packet,changed:true}});
   assert.equal(f.seen.calls,1);assert.equal(f.workspaces.length,1);assert.equal(first.workspace,second.workspace);
   assert.equal(first.cache.status,'MISS');assert.equal(second.cache.status,'HIT');assert.equal(second.cache.cached_input_tokens,80);
   assert.equal(second.cache.resumed,true);assert(fs.existsSync(path.join(second.workspace,'answer-1.json')));
+  assert.equal(second.cache.scope,'SDK_TURN');assert.equal(second.cache.input_tokens,100);
   assert(!f.seen.input[0].text.startsWith(f.options.policy));
   await assert.rejects(runCodex({...f.options,conversation,role:'recal'}),/CONVERSATION_BINDING_CHANGED/);
+});
+
+test('SDK cumulative usage becomes an exact interval and an old cache hit cannot label a new miss',()=>{
+  const {usageInterval}=require('./codex-runner');
+  const before={input_tokens:1959199,cached_input_tokens:1017728,output_tokens:16381};
+  const after={input_tokens:2627766,cached_input_tokens:1407616,output_tokens:18057};
+  assert.deepEqual(usageInterval(after,before,{resumed:true}),{scope:'SDK_TURN',reason:null,
+    tokens:{input_tokens:668567,cached_input_tokens:389888,output_tokens:1676}});
+  assert.equal(usageInterval(after,null,{resumed:true}).scope,'UNAVAILABLE');
+  assert.equal(usageInterval(before,after,{resumed:true}).reason,'SDK_COUNTERS_REBASED');
+  assert.equal(usageInterval(after,before,{resumed:true,uncertain:true}).scope,'SINCE_COMPLETION_INCLUDING_INTERRUPTION');
+});
+
+test('a resumed turn with no new cached tokens reports MISS despite positive conversation cache totals',async t=>{
+  let index=0;
+  const f=fixture(t,{factory:()=>{const i=index++;return(async function*(){yield answer;yield{type:'turn.completed',
+    usage:{input_tokens:100*(i+1),cached_input_tokens:80,output_tokens:2*(i+1)}};})();}});
+  const conversation={};
+  const first=await runCodex({...f.options,conversation});const second=await runCodex({...f.options,conversation});
+  assert.equal(first.cache.status,'HIT');assert.equal(second.cache.status,'MISS');assert.equal(second.cache.cached_input_tokens,0);
+  assert.equal(second.cache.conversation_totals.cached_input_tokens,80);
 });
 
 test('follow-up packets retain every value using exact updates and never advance on failed turns',async t=>{
