@@ -65,6 +65,23 @@ function attachMarketSocket(socket,feed,{book,currentSockets,receive,unavailable
   socket.on('socketerror',()=>ended('SOCKET_ERROR'));
 }
 
+async function suspendMarketSocket(feed,{book,currentSockets,page}){
+  // Freeze the last admitted cursor before fetching a recovery baseline. An
+  // incomplete replay cannot bridge a snapshot while new frames keep moving it.
+  // Invalidate ownership first so buffered frames and close callbacks stay inert.
+  const state=currentSockets.get(feed);
+  if(state){state.socket=null;state.claimedGeneration=++state.nextGeneration;}
+  book.connection(feed,false);
+  await page.evaluate(feed=>{
+    const store=window.__alphahandsV2MarketSockets;
+    const entry=store?.[feed];
+    if(!entry)return;
+    clearInterval(entry.timer);
+    delete store[feed];
+    entry.socket.close();
+  },feed);
+}
+
 async function collect({seconds=60,headless=false,outputDir=path.resolve(__dirname,'../../v2-runtime/market'),signal,onView=()=>{}}={}){
   if(seconds!==null&&(!Number.isInteger(seconds)||seconds<20||seconds>3600))throw Error('LIVE_DURATION_OUT_OF_BOUNDS');
   if(typeof headless!=='boolean')throw Error('INVALID_BROWSER_MODE');
@@ -172,6 +189,7 @@ async function collect({seconds=60,headless=false,outputDir=path.resolve(__dirna
       if(active.has(feed)||stopping)return;
       active.add(feed);
       try{
+        if(book.faults[feed])await suspendMarketSocket(feed,{book,currentSockets,page});
         const body=SCOPE[feed];
         // Only the observed public endpoint; normal browser same-origin auth.
         // No exported headers/cookies, spoofed fingerprint or access workaround.
@@ -254,4 +272,4 @@ if(require.main===module){
       note:'Bounded read-only run stopped; saved market.json is now disconnected, not a live fallback.'}))).catch(e=>{console.error(JSON.stringify({error:e.name,message:e.message.slice(0,180)}));process.exitCode=1;});
   }
 }
-module.exports={collect,atomic,safeBody,stripImages,retryAllowed,attachMarketSocket,createFatalBoundary,closeCollectorResources};
+module.exports={collect,atomic,safeBody,stripImages,retryAllowed,attachMarketSocket,suspendMarketSocket,createFatalBoundary,closeCollectorResources};

@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const {spawnSync}=require('node:child_process'),path=require('node:path');
-const {collect,safeBody,stripImages,retryAllowed,attachMarketSocket,createFatalBoundary,closeCollectorResources}=require('./collector');
+const {collect,safeBody,stripImages,retryAllowed,attachMarketSocket,suspendMarketSocket,createFatalBoundary,closeCollectorResources}=require('./collector');
 const {EventEmitter}=require('node:events');
 const {FeedBook,SCOPE,CHANNELS}=require('./network-feed');
 const fixture=require('./fixtures/gmgn-network-2026-10-27.json');
@@ -62,4 +62,40 @@ test('only our exact subscribed socket supplies data; delayed events from replac
   assert(book.connections.trending);assert.deepEqual(outages,[]);assert.deepEqual(data,['first']);
   second.emit('framereceived',{payload:'second'});assert.deepEqual(data,['first','second']);second.emit('close');send(second,message);second.emit('framereceived',{payload:'closed'});assert(!book.connections.trending);assert.deepEqual(outages,['SOCKET_CLOSED']);assert.deepEqual(data,['first','second']);
   stopped=true;second.emit('socketerror');assert.equal(outages.length,1);
+});
+
+test('recovery freezes only the owned feed before a fresh baseline and ignores late socket events',async()=>{
+  const book=new FeedBook({now:()=>Date.parse('2026-10-27T12:40:00Z')});
+  assert(book.snapshot('migrated',fixture.migrated,SCOPE.migrated).accepted);
+  const currentSockets=new Map(),received=[],outages=[];
+  const socket=new EventEmitter();
+  attachMarketSocket(socket,'migrated',{book,currentSockets,receive:(f,p)=>received.push(p),unavailable:(f,r)=>outages.push(r)});
+  const groups=[...book.groups.values()];
+  socket.emit('framesent',{payload:JSON.stringify({action:'subscribe',id:'v2-migrated',channel:CHANNELS.migrated,
+    data:groups.map(g=>({chain:g.chain,filter_id:g.filter_id,version:g.baseline_version}))})});
+  assert(book.connections.migrated);
+  const g=groups[0],missing=fixture.trending.data[0].tokens[0].a;
+  const failed={channel:CHANNELS.migrated,data:{fid:g.filter_id,v:'FFFFFFFFFFFFFFF0',t:[{c:g.chain,a:missing,f:{mc:1}}]}};
+  assert.equal(book.delta('migrated',failed).reason,'UNKNOWN_TOKEN_REBASE_REQUIRED');
+  let closed=0;
+  const other={socket:{close:()=>{throw Error('UNRELATED_SOCKET');}}};
+  const entry={timer:null,socket:{close:()=>{closed++;}}};
+  const savedWindow=global.window;
+  global.window={__alphahandsV2MarketSockets:{migrated:entry,trending:other}};
+  try{
+    await suspendMarketSocket('migrated',{book,currentSockets,page:{evaluate:async(work,arg)=>{
+      assert(!book.connections.migrated);
+      socket.emit('framereceived',{payload:'late frame'});socket.emit('close');
+      return work(arg);
+    }}});
+    assert.equal(closed,1);assert.deepEqual(received,[]);assert.deepEqual(outages,[]);
+    assert.equal(window.__alphahandsV2MarketSockets.trending,other);
+    assert(!window.__alphahandsV2MarketSockets.migrated);
+    assert.equal(book.snapshot('migrated',fixture.migrated,SCOPE.migrated).reason,'SNAPSHOT_BEFORE_FAILED_DELTA');
+    const fresh=JSON.parse(JSON.stringify(fixture.migrated));
+    for(const row of fresh.data)row.completed.version='FFFFFFFFFFFFFFF1';
+    assert(book.snapshot('migrated',fresh,SCOPE.migrated).accepted);
+    assert(!book.connections.migrated);
+    assert(!book.view().research_ready);
+  }finally{global.window=savedWindow;}
 });
